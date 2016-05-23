@@ -78,7 +78,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	bam_alignment = bam_init1();
 	j=0;
 	
-	while (j<maps_to_test){
+	//	while (j<maps_to_test){
       	  
 	  //	  return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 
@@ -96,7 +96,13 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	    exit (EXIT_COMMON);
 	  }
 
-	  
+
+
+	  return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+	
+	  while( return_value != -1 ){
+
+	    /*
 	  chrom_id = rand() % (params->num_chrom);
 	  
 	  start = (rand() % (params->chrom_lengths[chrom_id])) - 1000;
@@ -120,15 +126,20 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	    continue;
 	  }
 
+	    */
+
 	  bam_alignment_core = bam_alignment->core;
 	  
 	  if (bam_alignment_core.flag&(BAM_FSECONDARY|BAM_FSUPPLEMENTARY)) // skip secondary and supplementary alignments
 	    {
-	      hts_itr_destroy(iter);	  
+	      //hts_itr_destroy(iter);	  
+	      return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 	      continue;
 	    }
 	  if (bam_aux_get(bam_alignment, "MD") == NULL){
-	      hts_itr_destroy(iter);	  
+	      return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+	  
+	    //hts_itr_destroy(iter);	  
 	      continue;
 	  }
 
@@ -158,7 +169,9 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	  fprintf(stdout, "\nCIGAR: ");
 	  for (i=0; i<n_cigar; i++){
 	    if (bam_cigar_opchr(cigar[i]) == 'S' || bam_cigar_opchr(cigar[i]) == 'H'){
-	      hts_itr_destroy(iter);
+	      //hts_itr_destroy(iter);
+	      return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+
 	      clipped=1;
 	      break;
 	    }
@@ -203,9 +216,12 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	    free(ref_seq);
 
 	 
-	  hts_itr_destroy(iter);
+	  //hts_itr_destroy(iter);
 		  
 	  j++;
+
+	  return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+
 	}
 }
 
