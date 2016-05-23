@@ -29,7 +29,8 @@ void load_chrom_properties(parameters* params)
 	int ln_count=0,i,c;
 	char filename[255],first_arg[255],sec_arg[255];
 	int return_value;
-
+	int loc_len;
+	
 	sprintf( filename, "%s.fai", ( params)->ref_genome);
 	fai_file= safe_fopen( filename, "r");
 
@@ -48,13 +49,21 @@ void load_chrom_properties(parameters* params)
 	//We need the names and lengths of each chromosome
 	params->chrom_lengths = ( int*) malloc( params->num_chrom * sizeof( int));
 	params->chrom_names = ( char**) malloc( params->num_chrom * sizeof( char*));
+	params->chrom_seq = ( char**) malloc( params->num_chrom * sizeof( char*));
 	for( i = 0; i < params->num_chrom; i++)
 		{
 		  return_value = fscanf( fai_file, "%[^\t]\t%[^\t]%*[^\n]",first_arg,sec_arg);
 		  params->chrom_names[i]=NULL;
-		  set_str( &(params->chrom_names[i]), first_arg);
+		  if (first_arg[0] == '\n' || first_arg[0] == '\r')
+		    set_str( &(params->chrom_names[i]), first_arg+1);
+		  else
+		    set_str( &(params->chrom_names[i]), first_arg);		
 		  params->chrom_lengths[i]=atoi(sec_arg);
+		  fprintf(stderr, "\rLoading chromosome  %s ",params->chrom_names[i]);
+		  params->chrom_seq[i] = faidx_fetch_seq( params->ref_fai, params->chrom_names[i], 0, params->chrom_lengths[i]-1, &loc_len);
 		}
+		   
+      
 	fclose(fai_file);
 }
 
@@ -425,7 +434,7 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
       j=0;
       oplen=atoi(buf);
       refptr+=oplen;
-      printf("buf: %s : %d\n", buf, oplen);
+      //printf("buf: %s : %d\n", buf, oplen);
     }
 
     if (md[i]=='^'){ // del. skip
@@ -457,7 +466,7 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 	edit_loc += bam_cigar_oplen(cigar[k]);
       }
       refptr += inserted;
-      printf("changing %d:%c %d:%c\n", refptr, read[refptr], i, md[i]);
+      //printf("changing %d:%c %d:%c\n", refptr, read[refptr], i, md[i]);
       read[refptr++]=md[i];
     }
     i++; 

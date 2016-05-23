@@ -32,20 +32,25 @@ int main( int argc, char** argv)
  	        print_params( params);
 	}
 
+	params->ref_fai = fai_load(params->ref_genome);
+
+
 	load_chrom_properties(params);
 
+	fprintf(stderr, "\n");
 	/* read reference genome */
 	/*
 	refFile = safe_fopen(params->ref_genome, "r");
 	readSingleFasta(refFile);
 	*/
 	
-	params->ref_fai = fai_load(params->ref_genome);
 	
 	/* Read BAM files and calculate the median/avg/std of fragment sizes per library */
 	in_bam = ( bam_info*) malloc( sizeof( bam_info));
 	in_bam->sample_name = NULL;
 	load_bam( in_bam, params->bam_file);
+	
+
 	
 	/* Initial read */	
 	read_alignment(in_bam, params);

@@ -65,7 +65,8 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	char map_chr[MAX_SEQ];
 	int map_tid;
 	int map_loc;
-	char *ref_seq;
+	/* char *ref_seq; */
+	char ref_seq[MAX_SEQ];
 	char ref_seq2[MAX_SEQ];
 	int loc_len;
 	int clipped;
@@ -166,7 +167,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	  clipped=0;
 	  cigar_add_len = 0;
 
-	  fprintf(stdout, "\nCIGAR: ");
+	  //	  fprintf(stdout, "\nCIGAR: ");
 	  for (i=0; i<n_cigar; i++){
 	    if (bam_cigar_opchr(cigar[i]) == 'S' || bam_cigar_opchr(cigar[i]) == 'H'){
 	      //hts_itr_destroy(iter);
@@ -180,21 +181,26 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	    else if (bam_cigar_opchr(cigar[i]) == 'I')
 	      cigar_add_len -= bam_cigar_oplen(cigar[i]);
 	    //fprintf(stdout, "%d\t%c\t%d\t", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]), bam_cigar_type(cigar[i]));
-	    fprintf(stdout, "%d%c", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]));
+	    //fprintf(stdout, "%d%c", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]));
 	  }
 	
-	  fprintf(stdout, "\n");
+	  //fprintf(stdout, "\n");
 	  
 	  if (clipped) continue;
 
 	  strcpy(md, bam_aux_get(bam_alignment, "MD"));
-	  fprintf(stdout, "MD: %s\n", md);
+	  //	  fprintf(stdout, "MD: %s\n", md);
 
 	  map_tid = bam_alignment_core.tid;
 	  map_loc = bam_alignment_core.pos;
 	  strcpy(map_chr, bam_header->target_name[map_tid]);
 	  
+	  /*
 	  ref_seq = faidx_fetch_seq(params->ref_fai, map_chr, map_loc, map_loc-1+strlen(read)+cigar_add_len, &loc_len);
+	  */
+
+	  /* FIX THIS : map_tid in BAM doesn't necessarily match refgenome. Need a search function */
+	  memcpy(ref_seq, params->chrom_seq[map_tid]+map_loc, map_loc-1+strlen(read)+cigar_add_len);
 	  strcpy(ref_seq2, ref_seq);
 	  
 	  //fprintf(stdout, "%s\t%d\t%d\n%s\n%s\n", map_chr, map_loc, loc_len, read, ref_seq);
@@ -212,9 +218,10 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	    return;
 	  }
 	  
+	  /*
 	  if (ref_seq!=NULL)
 	    free(ref_seq);
-
+	  */
 	 
 	  //hts_itr_destroy(iter);
 		  

@@ -35,6 +35,7 @@ typedef struct _params
 	int num_chrom; /* number of chromosomes */
 	int* chrom_lengths; /* lengths of the chromosomes */
 	char** chrom_names; /* names of the chromosomes */
+        char **chrom_seq; /* chromosomes */
         faidx_t* ref_fai;
 } parameters;
 
