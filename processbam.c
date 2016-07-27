@@ -134,6 +134,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	  if (bam_alignment_core.flag&(BAM_FSECONDARY|BAM_FSUPPLEMENTARY)) // skip secondary and supplementary alignments
 	    {
 	      //hts_itr_destroy(iter);	  
+	      // it is ok to demux these and write out
 	      return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 	      continue;
 	    }
@@ -171,6 +172,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	  for (i=0; i<n_cigar; i++){
 	    if (bam_cigar_opchr(cigar[i]) == 'S' || bam_cigar_opchr(cigar[i]) == 'H'){
 	      //hts_itr_destroy(iter);
+	      // fixable. 
 	      return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 
 	      clipped=1;
@@ -193,9 +195,12 @@ void read_alignment( bam_info* in_bam, parameters *params)
 
 	  map_tid = bam_alignment_core.tid;
 	  map_loc = bam_alignment_core.pos;
+	  /* FIX THIS : map_tid in BAM doesn't necessarily match refgenome. Need a search function - bam_header should have this info */
+	  
 	  strcpy(map_chr, bam_header->target_name[map_tid]);
 	  
-	  /*
+	  /*  uncomment after fix.
+	      improvement: pre-load all reference into a large char array.
 	  ref_seq = faidx_fetch_seq(params->ref_fai, map_chr, map_loc, map_loc-1+strlen(read)+cigar_add_len, &loc_len);
 	  */
 
@@ -226,6 +231,9 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	  //hts_itr_destroy(iter);
 		  
 	  j++;
+
+	  /* Alignment is correct; demux it here */
+	  /* demux_akerim(); */
 
 	  return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 

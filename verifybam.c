@@ -38,11 +38,6 @@ int main( int argc, char** argv)
 	load_chrom_properties(params);
 
 	fprintf(stderr, "\n");
-	/* read reference genome */
-	/*
-	refFile = safe_fopen(params->ref_genome, "r");
-	readSingleFasta(refFile);
-	*/
 	
 	
 	/* Read BAM files and calculate the median/avg/std of fragment sizes per library */
