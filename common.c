@@ -51,19 +51,18 @@ void load_chrom_properties(parameters* params)
 	params->chrom_names = ( char**) malloc( params->num_chrom * sizeof( char*));
 	params->chrom_seq = ( char**) malloc( params->num_chrom * sizeof( char*));
 	for( i = 0; i < params->num_chrom; i++)
-		{
-		  return_value = fscanf( fai_file, "%[^\t]\t%[^\t]%*[^\n]",first_arg,sec_arg);
-		  params->chrom_names[i]=NULL;
-		  if (first_arg[0] == '\n' || first_arg[0] == '\r')
-		    set_str( &(params->chrom_names[i]), first_arg+1);
-		  else
-		    set_str( &(params->chrom_names[i]), first_arg);		
-		  params->chrom_lengths[i]=atoi(sec_arg);
-		  fprintf(stderr, "\rLoading chromosome  %s ",params->chrom_names[i]);
-		  params->chrom_seq[i] = faidx_fetch_seq( params->ref_fai, params->chrom_names[i], 0, params->chrom_lengths[i]-1, &loc_len);
-		}
-		   
-      
+	{
+		return_value = fscanf( fai_file, "%[^\t]\t%[^\t]%*[^\n]",first_arg,sec_arg);
+		params->chrom_names[i]=NULL;
+		if (first_arg[0] == '\n' || first_arg[0] == '\r')
+			set_str( &(params->chrom_names[i]), first_arg+1);
+		else
+			set_str( &(params->chrom_names[i]), first_arg);		
+		params->chrom_lengths[i]=atoi(sec_arg);
+		fprintf(stderr, "\rLoading chromosome  %s ",params->chrom_names[i]);
+		params->chrom_seq[i] = faidx_fetch_seq( params->ref_fai, params->chrom_names[i], 0, params->chrom_lengths[i]-1, &loc_len);
+	}
+		
 	fclose(fai_file);
 }
 
@@ -146,8 +145,8 @@ int is_concordant( bam1_core_t bam_alignment_core, int min, int max)
 
 	if( ( flag & BAM_FPAIRED) == 0) 
 	{
-	        /* Read is single-end. Skip this by calling it concordant */
-	        return 1;
+		/* Read is single-end. Skip this by calling it concordant */
+		return 1;
 	}
 
 	if( ( flag & BAM_FPROPER_PAIR) == 0) 
@@ -286,12 +285,12 @@ void set_str( char** target, char* source)
 	
 	if (source != NULL)
 	{
-	        ( *target) = ( char*) malloc( sizeof( char) * ( strlen( source) + 1));
+		( *target) = ( char*) malloc( sizeof( char) * ( strlen( source) + 1));
 		strncpy( ( *target), source, ( strlen( source) + 1));
 	}
 	else
 	{
-	        ( *target) = NULL;
+		( *target) = NULL;
 	}
 }
 
@@ -313,8 +312,8 @@ void reverse_string( char* str)
 
 int compare_size_int( const void* p, const void* q)
 {
-    int i = *( const int*) p;
-    int j = *( const int*) q;
+	int i = *( const int*) p;
+	int j = *( const int*) q;
 
 	if( i < j)
 	{
@@ -357,118 +356,118 @@ double getMemUsage()
 }
 
 void del_char(char *ref, int start, int len){
-  int ref_len = strlen(ref);
-  int i;
-  for (i=start;i<start+len && i<ref_len;i++)
-    ref[i]=ref[i+len];
-  while (i < ref_len - len){
-    ref[i]=ref[i+len];
-    i++;
-  }
-  ref[i]=0;
+	int ref_len = strlen(ref);
+	int i;
+	for (i=start;i<start+len && i<ref_len;i++)
+		ref[i]=ref[i+len];
+	while (i < ref_len - len){
+		ref[i]=ref[i+len];
+		i++;
+	}
+	ref[i]=0;
 }
 
 void ins_char(char *ref, char *read, int start, int len){
-  int ref_len = strlen(ref);
-  int i;
+	int ref_len = strlen(ref);
+	int i;
 
-  for (i=ref_len+len; i>=start; i--)
-    ref[i]=ref[i-len];
+	for (i=ref_len+len; i>=start; i--)
+		ref[i]=ref[i-len];
 
-  ref[ref_len+len]=0;
-  ref_len = ref_len+len;
+	ref[ref_len+len]=0;
+	ref_len = ref_len+len;
 
-  for (i=start;i<start+len && i<ref_len;i++){   
-    ref[i]= read[i]; //'.';
-  }
+	for (i=start;i<start+len && i<ref_len;i++){	 
+		ref[i]= read[i]; //'.';
+	}
 
 }
 
 void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t *cigar){
-  //void applymd(char *ref, char *md){
-  /* assuming Z is removed */
-  int i,j,k;
-  char buf[1000];
-  int oplen;
-  int refptr=0;
-  int edit_loc;
-  int delcnt;
-  int thisdel;
-  int inserted;
-  int skipk;
+	//void applymd(char *ref, char *md){
+	/* assuming Z is removed */
+	int i,j,k;
+	char buf[1000];
+	int oplen;
+	int refptr=0;
+	int edit_loc;
+	int delcnt;
+	int thisdel;
+	int inserted;
+	int skipk;
 
 
-  edit_loc = 0;
-  for (i=0; i<n_cigar; i++){
-    if (bam_cigar_opchr(cigar[i]) == 'M')
-      edit_loc += bam_cigar_oplen(cigar[i]);
-    else if (bam_cigar_opchr(cigar[i]) == 'D'){
-      del_char(ref, edit_loc, bam_cigar_oplen(cigar[i]));
-      //edit_loc -= bam_cigar_oplen(cigar[i]);
-    }
-    else if (bam_cigar_opchr(cigar[i]) == 'I'){
-      ins_char(ref, read, edit_loc, bam_cigar_oplen(cigar[i]));
-      edit_loc += bam_cigar_oplen(cigar[i]);
-    }
-    //fprintf(stdout, "%d\t%c\t", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(c igar[i]));
-    //fprintf(stdout, "%d\t%d\t%c\t%d\t", bam_cigar_op(cigar[i]), bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]), bam_cigar_type(cigar[i]));
-  }
-  
-
-
-  j=0;
-  buf[0]=0;
-  i=0;
-  delcnt=1;
-  inserted=0;
-  skipk=0;
-  //printf("md: %s\n", md);
-  while (i<strlen(md)){
-    //printf("md[%d]: %c\n", i, md[i]);
-    if (isdigit(md[i])){
-      //printf("digit %c\n", md[i]);
-      buf[j++]=md[i];
-    }
-    else {
-      buf[j]=0;
-      j=0;
-      oplen=atoi(buf);
-      refptr+=oplen;
-      //printf("buf: %s : %d\n", buf, oplen);
-    }
-
-    if (md[i]=='^'){ // del. skip
-      //while (isalpha(md[i])) {i++; refptr++;}      
-      thisdel = 0;
-      for (k=0; k<n_cigar; k++){
-	if (bam_cigar_opchr(cigar[k]) == 'D'){
-	  thisdel++;
-	  if (thisdel == delcnt){
-	    //while (isalpha(md[i])) {i++; refptr++;}
-	    //while (isalpha(md[i])) {i++; }
-	    
-	    i+=bam_cigar_oplen(cigar[k]); 
-		delcnt++; break;
-	    //refptr+=bam_cigar_oplen(cigar[k]); 
-	  }
+	edit_loc = 0;
+	for (i=0; i<n_cigar; i++){
+		if (bam_cigar_opchr(cigar[i]) == 'M')
+			edit_loc += bam_cigar_oplen(cigar[i]);
+		else if (bam_cigar_opchr(cigar[i]) == 'D'){
+			del_char(ref, edit_loc, bam_cigar_oplen(cigar[i]));
+			//edit_loc -= bam_cigar_oplen(cigar[i]);
+		}
+		else if (bam_cigar_opchr(cigar[i]) == 'I'){
+			ins_char(ref, read, edit_loc, bam_cigar_oplen(cigar[i]));
+			edit_loc += bam_cigar_oplen(cigar[i]);
+		}
+		//fprintf(stdout, "%d\t%c\t", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(c igar[i]));
+		//fprintf(stdout, "%d\t%d\t%c\t%d\t", bam_cigar_op(cigar[i]), bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]), bam_cigar_type(cigar[i]));
 	}
-      }
-    }
-    else if (isalpha(md[i])){
-      inserted = 0;
-      edit_loc = 0;
-      for (k=skipk; k<n_cigar; k++){
-	//if (bam_cigar_opchr(cigar[k]) == 'I' && edit_loc <= refptr+bam_cigar_oplen(cigar[k])){
-	if (bam_cigar_opchr(cigar[k]) == 'I' && edit_loc <= refptr){
-	  inserted += bam_cigar_oplen(cigar[k]);
-	  skipk=k+1;
+
+	// Initialize variables to their first states
+	j=0;
+	buf[0]=0;
+	i=0;
+	delcnt=1;
+	inserted=0;
+	skipk=0;
+	//printf("md: %s\n", md);
+	while (i<strlen(md)){
+		//printf("md[%d]: %c\n", i, md[i]);
+		if (isdigit(md[i])){
+			//printf("digit %c\n", md[i]);
+			buf[j++]=md[i];
+		}
+		else {
+			buf[j]=0;
+			j=0;
+			oplen=atoi(buf);
+			refptr+=oplen;
+			//printf("buf: %s : %d\n", buf, oplen);
+		}
+
+		if (md[i]=='^'){ // del. skip
+			//while (isalpha(md[i])) {i++; refptr++;}			
+			thisdel = 0;
+			for (k=0; k<n_cigar; k++){
+				if (bam_cigar_opchr(cigar[k]) == 'D'){
+					thisdel++;
+					if (thisdel == delcnt){
+						//while (isalpha(md[i])) {i++; refptr++;}
+						//while (isalpha(md[i])) {i++; }
+						
+						i+=bam_cigar_oplen(cigar[k]); 
+						delcnt++;
+						break;
+						//refptr+=bam_cigar_oplen(cigar[k]); 
+					}
+				}
+			}
+		}
+		else if (isalpha(md[i])){
+			inserted = 0;
+			edit_loc = 0;
+			for (k=skipk; k<n_cigar; k++){
+				//if (bam_cigar_opchr(cigar[k]) == 'I' && edit_loc <= refptr+bam_cigar_oplen(cigar[k])){
+				if (bam_cigar_opchr(cigar[k]) == 'I' && edit_loc <= refptr){
+					inserted += bam_cigar_oplen(cigar[k]);
+					skipk=k+1;
+				}
+				edit_loc += bam_cigar_oplen(cigar[k]);
+			}
+			refptr += inserted;
+			//printf("changing %d:%c %d:%c\n", refptr, read[refptr], i, md[i]);
+			read[refptr++]=md[i];
+		}
+		i++; 
 	}
-	edit_loc += bam_cigar_oplen(cigar[k]);
-      }
-      refptr += inserted;
-      //printf("changing %d:%c %d:%c\n", refptr, read[refptr], i, md[i]);
-      read[refptr++]=md[i];
-    }
-    i++; 
-  }
 }

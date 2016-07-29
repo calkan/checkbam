@@ -28,8 +28,8 @@ int main( int argc, char** argv)
 	}
 
 	if ( VERIFYBAM_DEBUG)
-        {
- 	        print_params( params);
+	{
+		print_params( params);
 	}
 
 	params->ref_fai = fai_load(params->ref_genome);

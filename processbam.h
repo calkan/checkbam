@@ -16,9 +16,9 @@
 typedef struct _bam_info
 {
 	htsFile* bam_file; /* file pointer to the BAM file */
-        hts_idx_t *bam_index;
-        bam_hdr_t* bam_header;
-  	char* sample_name; /* name of the sample, parsed from SM in the BAM header */
+	hts_idx_t *bam_index;
+	bam_hdr_t* bam_header;
+	char* sample_name; /* name of the sample, parsed from SM in the BAM header */
 	int num_libraries; /* number of libraries, counted from the RG tags in the BAM header */
 	struct library_properties** libraries; /* each library_properties struct holds statistical/other info */
 } bam_info;
