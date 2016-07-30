@@ -214,7 +214,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 
 
 		strncpy(ref_seq, params->chrom_seq[map_tid]+map_loc, strlen(read)+cigar_add_len);
-		ref_seq[real_len] = '\0';
+		ref_seq[strlen(read)+cigar_add_len] = '\0';
 		strcpy(ref_seq2, ref_seq);
 		
 		//fprintf(stdout, "%s\t%d\t%d\n%s\n%s\n", map_chr, map_loc, loc_len, read, ref_seq);
