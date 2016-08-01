@@ -215,11 +215,10 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		// Get chromosome name to never use again!
 		strcpy(map_chr, bam_header->target_name[map_tid]);
 
-		fprintf(stdout, "map_chr: %s\n", map_chr); 
-		
-		ref_len = strlen(read)+cigar_add_len;
-		strncpy(ref_seq, params->chrom_seq[map_tid]+map_loc, ref_len);
-		ref_seq[ref_len] = '\0';
+		fprintf(stdout, "map_chr: %s\n", map_chr);
+
+		strncpy(ref_seq, params->chrom_seq[map_tid]+map_loc, strlen(read)+cigar_add_len);
+		ref_seq[strlen(read)+cigar_add_len] = '\0';
 		strcpy(ref_seq2, ref_seq);
 		
 		//fprintf(stdout, "%s\t%d\t%d\n%s\n%s\n", map_chr, map_loc, loc_len, read, ref_seq);
