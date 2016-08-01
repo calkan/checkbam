@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <htslib/sam.h>
 
 
 void del_char(char *ref, int start, int len){

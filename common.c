@@ -414,7 +414,6 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 		}
 		else if (cigar[i] == 'D'){
 			del_char(ref, carry_pos, cigarlen[i]);
-			//edit_loc -= cigarlen[i];
 		}
 		else if (cigar[i] == 'I'){
 			ins_char(ref, read, edit_loc, carry_pos, cigarlen[i]);
