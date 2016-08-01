@@ -39,6 +39,11 @@ typedef struct _params
 	faidx_t* ref_fai;
 } parameters;
 
+typedef struct operation_s {
+	unsigned short int start;
+	unsigned short int length;
+} operation;
+
 /* Parameter related TARDIS functions */
 void init_params( parameters**);
 void print_params( parameters*);
@@ -72,7 +77,7 @@ void freeMem( void* ptr, size_t size);
 double getMemUsage();
 
 void del_char(char *ref, int start, int len);
-void ins_char(char *ref, char *, int start, int len);
+void ins_char(char *ref, char *read, int start_origin, int start_dest, int len);
 //void applymd(char *ref, char *md);
 void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t *cigar);
 

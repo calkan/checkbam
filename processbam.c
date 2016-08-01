@@ -49,6 +49,9 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	char qual[MAX_SEQ];
 	char read2[MAX_SEQ];
 
+	int read_len;
+	int ref_len;
+
 	char next_char;
 	const uint32_t *cigar;
 	int n_cigar;
@@ -68,8 +71,9 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	char ref_seq[MAX_SEQ];
 	char ref_seq2[MAX_SEQ];
 	int loc_len;
-	int clipped;
+	int soft_clips[2] = {0};
 	int cigar_add_len;
+	int clipped;
 
 	bam_file = in_bam->bam_file;
 	bam_header = in_bam->bam_header;
@@ -164,6 +168,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 			read[i] = next_char;
 		}
 		read[i] = '\0';
+		read_len = i;
 		strcpy(read2, read);
 		fprintf(stdout, "%s\n", bam_get_qname(bam_alignment));
 		fprintf(stdout, "%s\n", read);
@@ -172,15 +177,15 @@ void read_alignment( bam_info* in_bam, parameters *params)
 
 		clipped=0;
 		cigar_add_len = 0;
+		soft_clips[0] = 0;
+		soft_clips[1] = 0;
 
 		//		fprintf(stdout, "\nCIGAR: ");
 		for (i=0; i<n_cigar; i++){
-			if (bam_cigar_opchr(cigar[i]) == 'S' || bam_cigar_opchr(cigar[i]) == 'H'){
-				// hts_itr_destroy(iter);
-				// fixable. 
+			if (bam_cigar_opchr(cigar[i]) == 'H'){
 				return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 
-				clipped=1;
+				clipped = 1;
 				break;
 			}
 			else if (bam_cigar_opchr(cigar[i]) == 'D')
@@ -211,10 +216,10 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		strcpy(map_chr, bam_header->target_name[map_tid]);
 
 		fprintf(stdout, "map_chr: %s\n", map_chr); 
-
-
-		strncpy(ref_seq, params->chrom_seq[map_tid]+map_loc, strlen(read)+cigar_add_len);
-		ref_seq[real_len] = '\0';
+		
+		ref_len = strlen(read)+cigar_add_len;
+		strncpy(ref_seq, params->chrom_seq[map_tid]+map_loc, ref_len);
+		ref_seq[ref_len] = '\0';
 		strcpy(ref_seq2, ref_seq);
 		
 		//fprintf(stdout, "%s\t%d\t%d\n%s\n%s\n", map_chr, map_loc, loc_len, read, ref_seq);
@@ -222,6 +227,13 @@ void read_alignment( bam_info* in_bam, parameters *params)
 
 		//		return_value = check_map(read, ref_seq, cigar, md);
 		
+		int k;
+		for(k=soft_clips[0]; k<read_len - soft_clips[1]; k++){
+			read[k-soft_clips[0]] = read[k];
+		}
+		read[read_len - (soft_clips[0]+soft_clips[1])] = '\0';
+		ref_seq[ref_len - (soft_clips[0]+soft_clips[1])] = '\0';
+
 		apply_cigar_md(ref_seq, read, md+1, n_cigar, cigar);
 
 		//		fprintf(stdout, "\npos\n%s\n%s\n", read, ref_seq);
