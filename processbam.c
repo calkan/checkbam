@@ -7,6 +7,15 @@
 /* tardis headers */
 #include "processbam.h"
 
+void fix_n_base( char *ref, char *read){
+	int i;
+	int len = strlen(ref);
+	for(i=0; i<len; i++){
+		if(ref[i] == 'N')
+			ref[i] = read[i];
+	}
+}
+
 void load_bam( bam_info* in_bam, char* path)
 {
 	/* Variables */
@@ -74,6 +83,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	int soft_clips[2] = {0};
 	int cigar_add_len;
 	int clipped;
+	int aligned_read_count=0;
 
 	bam_file = in_bam->bam_file;
 	bam_header = in_bam->bam_header;
@@ -105,32 +115,6 @@ void read_alignment( bam_info* in_bam, parameters *params)
 
 	while( return_value != -1 ){
 
-			/*
-		chrom_id = rand() % (params->num_chrom);
-		
-		start = (rand() % (params->chrom_lengths[chrom_id])) - 1000;
-		end = start + 1000;
-
-		sprintf(rand_loc, "%s:%d-%d", params->chrom_names[chrom_id], start, end);
-
-		hts_itr_t *iter=sam_itr_queryi(bam_index, chrom_id, start, end);
-
-		if (iter == NULL) { // region invalid or reference name not found
-
-			hts_itr_destroy(iter);
-			continue;
-		}
-
-		result = sam_itr_next(bam_file, iter, bam_alignment);
-
-		if (result < 0){
-			//printf("res %s\n", rand_loc);
-			hts_itr_destroy(iter);
-			continue;
-		}
-
-			*/
-
 		bam_alignment_core = bam_alignment->core;
 		
 		if (bam_alignment_core.flag & (BAM_FSECONDARY|BAM_FSUPPLEMENTARY)) // skip secondary and supplementary alignments
@@ -150,11 +134,6 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		// Number of cigar operations
 		n_cigar = bam_alignment_core.n_cigar;
 
-		if(n_cigar == 1){
-			fprintf(stdout, "Cigar came out 1. No reason to look at it\n");
-			return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
-			continue;
-		}
 		// Copy the whole sequence into char array
 		strncpy( sequence, bam_get_seq( bam_alignment), bam_alignment_core.l_qseq);
 		sequence[bam_alignment_core.l_qseq] = '\0';
@@ -170,17 +149,11 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		read[i] = '\0';
 		read_len = i;
 		strcpy(read2, read);
-		fprintf(stdout, "%s\n", bam_get_qname(bam_alignment));
-		fprintf(stdout, "%s\n", read);
-		fprintf(stdout, "%s\n",	qual);
-		fprintf(stdout, "n_cigar: %d\n", n_cigar);
 
 		clipped=0;
 		cigar_add_len = 0;
-		soft_clips[0] = 0;
-		soft_clips[1] = 0;
 
-		//		fprintf(stdout, "\nCIGAR: ");
+		//		//fprintf(stdout, "\nCIGAR: ");
 		for (i=0; i<n_cigar; i++){
 			if (bam_cigar_opchr(cigar[i]) == 'H'){
 				return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
@@ -192,58 +165,67 @@ void read_alignment( bam_info* in_bam, parameters *params)
 				cigar_add_len += bam_cigar_oplen(cigar[i]);
 			else if (bam_cigar_opchr(cigar[i]) == 'I')
 				cigar_add_len -= bam_cigar_oplen(cigar[i]);
-			fprintf(stdout, "%d\t%c\t%d\t", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]), bam_cigar_type(cigar[i]));
-			fprintf(stdout, "%d%c\n", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]));
 		}
-	
-		//fprintf(stdout, "\n");
 		
 		if (clipped){ 
-			fprintf(stdout, "Clipped\n");
-			continue;
+			//fprintf(stdout, "Clipped\n");
+			break;
 		}
 
 
 		strcpy(md, bam_aux_get(bam_alignment, "MD"));
-		fprintf(stdout, "MD: %s\n", md);
 
 		map_tid = bam_alignment_core.tid;
 		map_loc = bam_alignment_core.pos;
 
-		fprintf(stdout, "map_tid: %d\t map_loc: %d\n", map_tid, map_loc);
+		//fprintf(stdout, "map_tid: %d\t map_loc: %d\n", map_tid, map_loc);
 		
 		// Get chromosome name to never use again!
 		strcpy(map_chr, bam_header->target_name[map_tid]);
 
-		fprintf(stdout, "map_chr: %s\n", map_chr);
+		//fprintf(stdout, "map_chr: %s\n", map_chr);
 
-		strncpy(ref_seq, params->chrom_seq[map_tid]+map_loc, strlen(read)+cigar_add_len);
-		ref_seq[strlen(read)+cigar_add_len] = '\0';
-		strcpy(ref_seq2, ref_seq);
-		
-		//fprintf(stdout, "%s\t%d\t%d\n%s\n%s\n", map_chr, map_loc, loc_len, read, ref_seq);
-		//fprintf(stdout, "pre\n%s\n%s\n", read, ref_seq);
+		strncpy(ref_seq, params->chrom_seq[map_tid]+map_loc, read_len+cigar_add_len);
+		ref_len = strlen(ref_seq);
 
-		//		return_value = check_map(read, ref_seq, cigar, md);
-		
-		int k;
-		for(k=soft_clips[0]; k<read_len - soft_clips[1]; k++){
-			read[k-soft_clips[0]] = read[k];
+		// Sometimes ref chromosome is not long enough to cover the match. This incident should be reported.
+		// For now, fill the rest with N bases.
+		if(ref_len < (read_len+cigar_add_len)){
+			for(i=ref_len; i<read_len+cigar_add_len; i++){
+				ref_seq[i] = 'N';
+			}
 		}
-		read[read_len - (soft_clips[0]+soft_clips[1])] = '\0';
-		ref_seq[ref_len - (soft_clips[0]+soft_clips[1])] = '\0';
+		ref_seq[read_len+cigar_add_len] = '\0';
+		strcpy(ref_seq2, ref_seq);
 
 		apply_cigar_md(ref_seq, read, md+1, n_cigar, cigar);
 
-		//		fprintf(stdout, "\npos\n%s\n%s\n", read, ref_seq);
+		// Debug fix.
+		// Strange condition. Ref genome has N base, MD field suggest different.
+		fix_n_base(ref_seq, read);
+
+		//		//fprintf(stdout, "\npos\n%s\n%s\n", read, ref_seq);
 
 		if (strcmp(read, ref_seq)){
+			fprintf(stdout, "%s\n", bam_get_qname(bam_alignment));
+			fprintf(stdout, "%s\n", read);
+			fprintf(stdout, "%s\n",	qual);
+
+			fprintf(stdout, "n_cigar: %d\n", n_cigar);
+			for (i=0; i<n_cigar; i++){
+				fprintf(stdout, "%d\t%c\t%d\t", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]), bam_cigar_type(cigar[i]));
+				fprintf(stdout, "%d%c\n", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]));
+			}
+			fprintf(stdout, "MD: %s\n", md);
+			
 			fprintf(stdout, "\npre\n%s\n%s\n", read2, ref_seq2);
 			fprintf(stdout, "\npos\n%s\n%s\n", read, ref_seq);
+			fprintf(stdout, "\ntotal aligned reads\n%d\n", aligned_read_count);
 			return;
 		}
 		else{
-			fprintf(stdout, "\nread aligned\n%s\n%s\n", read, ref_seq);
+			aligned_read_count++;
+			//fprintf(stdout, "\nread aligned\n%s\n%s\n", read, ref_seq);
 		}
 
 		
@@ -251,17 +233,16 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		if (ref_seq!=NULL)
 			free(ref_seq);
 		*/
-	 
-		//hts_itr_destroy(iter);
 			
 		j++;
 
 		/* Alignment is correct; demux it here */
-		/* demux_akerim(); */
+		/* demux(); */
 
 		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 
 	}
+	fprintf(stdout, "\nAll reads are matched. Total aligned read count is %d\n", aligned_read_count);
 }
 
 

@@ -27,12 +27,12 @@ void load_chrom_properties(parameters* params)
 {
 	FILE* fai_file;
 	int ln_count=0,i,c;
-	char filename[255],first_arg[255],sec_arg[255];
+	char filename[255],first_arg[255],sec_arg[255],cache_filename[255];
 	int return_value;
 	int loc_len;
 	
-	sprintf( filename, "%s.fai", ( params)->ref_genome);
-	fai_file= safe_fopen( filename, "r");
+	sprintf( filename, "%s.fai", (params)->ref_genome);
+	fai_file = safe_fopen( filename, "r");
 
 
 	//count the number of chromosomes by counting the non-empty lines in the .fai file
@@ -378,10 +378,10 @@ void ins_char(char *ref, char *read, int start_origin, int start_dest, int len){
 	ref_len = ref_len+len;
 
 	for (i=0; i<len && i+start_dest<ref_len; i++){	 
-		printf("%c", read[i + start_origin]);
+		//printf("%c", read[i + start_origin]);
 		ref[i + start_dest] = read[i + start_origin]; //'.';
 	}
-	printf("\n");
+	//printf("\n");
 }
 
 void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t* _cigar){
@@ -394,7 +394,7 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 	int delcnt;
 	int thisdel;
 	int inserted;
-	int skipk;
+	int last_i_cigar;
 	operation soft_clips[2];
 	int soft_clips_len = 0;
 	int cigarlen[n_cigar];
@@ -446,7 +446,7 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 	i=0;
 	delcnt=1;
 	inserted=0;
-	skipk = 0;
+	last_i_cigar = 0;
 	refptr = 0;
 	
 	while (i<strlen(md)){
@@ -481,21 +481,19 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 			inserted = 0;
 			edit_loc = 0;
 			
-			for (k=skipk; k<n_cigar; k++){
-				//printf("editloc %d	refptr %d\n", edit_loc, refptr);
-				if (cigar[k] == 'I' && edit_loc <= refptr){
-					inserted += cigarlen[k];
-					skipk = k+1;
-				}
-
-				if (cigar[k] != 'S'){
+			for (k=0; k<n_cigar; k++){
+				if (cigar[k] == 'M'){
 					edit_loc += cigarlen[k];
 				}
+				if (cigar[k] == 'I' && edit_loc <= refptr){
+					inserted += cigarlen[k];
+				}
+				
 			}
-			refptr += inserted;
 			//printf("refptr added %d\n", inserted);
 			//printf("changing %d:%c %d:%c\n", refptr, read[refptr], (i+1), md[i]);
-			read[refptr++]=md[i];
+			read[refptr+inserted]=md[i];
+			refptr++;
 			//printf("postedit refptr %d\n", refptr);
 			//printf("\npostedit\n%s\n%s\n%s\n", index, read, ref);
 		}
