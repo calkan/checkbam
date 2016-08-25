@@ -17,7 +17,7 @@ If htslib is not installed, there will be no output. Use following clone command
 
 Otherwise, simply clone the project without htslib.
 
-```git clone --recursive https://github.com/calkan/verifybam```
+```git clone https://github.com/calkan/verifybam```
 
 ## Build
 
@@ -25,9 +25,9 @@ Makefile is already configured whether you have htslib or not. If it is not alre
 
 ```make all```
 
-This command should create the necessary executable 'verifybam'. 
+This command should create the necessary executable 'verifybam'.
 
-```make install``` 
+```make install```
 
 To install verifybam and use from shell.
 

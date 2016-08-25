@@ -10,13 +10,13 @@ int parse_command_line( int argc, char** argv, parameters* params)
 {
 	int index;
 	int o;
-	static struct option long_options[] = 
+	static struct option long_options[] =
 	{
 		{"input"	, required_argument,	0, 'i'},
 		{"ref"		, required_argument,	0, 'f'},
-		{"maps"		, required_argument,	0, 'm'},
+		{"fastq"	, required_argument,	0, 'q'},
 		{"help"		, no_argument,			0, 'h'},
-		{"threads"	, required_argument,	0, 't'},	
+		{"threads"	, required_argument,	0, 't'},
 		{"version"	, no_argument,			0, 'v'},
 		{0			, 0, 					0, 0}
 	};
@@ -26,23 +26,24 @@ int parse_command_line( int argc, char** argv, parameters* params)
 		print_help();
 		return 0;
 	}
-	
-	while( ( o = getopt_long( argc, argv, "hv:i:f:t:m:", long_options, &index)) != -1)
+
+	while( ( o = getopt_long( argc, argv, "hv:i:f:t:q:", long_options, &index)) != -1)
 	{
-		switch( o)
+		switch(o)
 		{
 			case 'i':
 				set_str( &( params->bam_file), optarg);
 			break;
-		
+
 			case 'f':
 				set_str( &( params->ref_genome), optarg);
 			break;
 
-			case 'm':
-				params->maps_to_test = atoi (optarg);
+			case 'q':
+				set_str( &( params->fastq_files[params->num_fastq_files]), optarg);
+				params->num_fastq_files++;
 			break;
-			
+
 			case 't':
 				params->threads = atoi( optarg);
 			break;
@@ -57,12 +58,11 @@ int parse_command_line( int argc, char** argv, parameters* params)
 				fprintf( stderr, "Version %s\n\tLast update: %s, build date: %s\n\n", VERIFYBAM_VERSION, VERIFYBAM_UPDATE, BUILD_DATE);
 				fprintf( stderr, "It is bigger on the inside!\n\n");
 				return 0;
-			break; 
+			break;
 		}
 	}
-	
+
 	/* TODO: check parameter validity */
-	
 
 	if( params->bam_file == NULL)
 	{
@@ -74,6 +74,13 @@ int parse_command_line( int argc, char** argv, parameters* params)
 	if( params->ref_genome == NULL)
 	{
 		fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter reference genome file (FASTA) using the --ref option.\n");
+		return EXIT_PARAM_ERROR;
+	}
+
+	/* check if --fastq	 is invoked */
+	if( params->num_fastq_files == 0)
+	{
+		fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter at least one fastq file (FASTQ) using the --fastq option.\n");
 		return EXIT_PARAM_ERROR;
 	}
 
@@ -89,13 +96,12 @@ int parse_command_line( int argc, char** argv, parameters* params)
 }
 
 void print_help( void)
-{	
+{
 	fprintf( stdout, "\nVERIFYBAM: BAM validity checking tool.\n");
-	fprintf( stdout, "Version %s\n\tLast update: %s, build date: %s\n\n", VERIFYBAM_VERSION, VERIFYBAM_UPDATE, BUILD_DATE);	
-	fprintf( stdout, "\t--bamlist	 [bamlist file] : A text file that lists input BAM files one file per line.\n");
-	fprintf( stdout, "\t--input [BAM files]				: Input files in sorted and indexed BAM format. You can pass multiple BAMs using multiple --input parameters.\n");
-	fprintf( stdout, "\t--ref	 [reference genome] : Reference genome in FASTA format.\n");
-	fprintf( stdout, "\t--version									: Print version and exit.\n");
-	fprintf( stdout, "\t--help										 : Print this help screen and exit.\n\n");
+	fprintf( stdout, "Version %s\n\tLast update: %s, build date: %s\n\n", VERIFYBAM_VERSION, VERIFYBAM_UPDATE, BUILD_DATE);
+	fprintf( stdout, "\t--input [BAM file]   : Input file in sorted and indexed BAM format.\n");
+	fprintf( stdout, "\t--ref   [reference]  : Reference genome in FASTA format.\n");
+	fprintf( stdout, "\t--fastq [Fastq file] : A fastq file that contains original reads from input BAM file. Can be given multiple times.\n");
+	fprintf( stdout, "\t--version            : Print version and exit.\n");
+	fprintf( stdout, "\t--help               : Print this help screen and exit.\n\n");
 }
-

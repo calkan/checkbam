@@ -29,9 +29,10 @@ enum gender{ MALE, FEMALE};
 typedef struct _params
 {
 	char* ref_genome; /* path to reference genome - fasta */
-	char* bam_file; /* the actual list that holds all bam file paths after tokenization */
-	int  threads; /* number of threads to use for parallel mrFAST, and maybe future parallelization of TARDIS */
-	int maps_to_test;
+	char* bam_file; /* path to bam file - bam */
+	int threads; /* number of threads to use for parallel mrFAST, and maybe future parallelization of TARDIS */
+	char* fastq_files[100]; /* List of maximum number of 100 fastq files to use for validation. */
+	int num_fastq_files; /* Actual number of fastq files */
 	int num_chrom; /* number of chromosomes */
 	int* chrom_lengths; /* lengths of the chromosomes */
 	char** chrom_names; /* names of the chromosomes */

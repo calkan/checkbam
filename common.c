@@ -19,7 +19,7 @@ void init_params( parameters** params)
 	*params = ( parameters*) malloc( sizeof( parameters));
 	( *params)->ref_genome = NULL;
 	( *params)->bam_file = NULL;
-	( *params)->maps_to_test = 100;
+	( *params)->num_fastq_files = 0;
 	( *params)->threads = 1;
 }
 
@@ -30,7 +30,7 @@ void load_chrom_properties(parameters* params)
 	char filename[255],first_arg[255],sec_arg[255],cache_filename[255];
 	int return_value;
 	int loc_len;
-	
+
 	sprintf( filename, "%s.fai", (params)->ref_genome);
 	fai_file = safe_fopen( filename, "r");
 
@@ -57,12 +57,12 @@ void load_chrom_properties(parameters* params)
 		if (first_arg[0] == '\n' || first_arg[0] == '\r')
 			set_str( &(params->chrom_names[i]), first_arg+1);
 		else
-			set_str( &(params->chrom_names[i]), first_arg);		
+			set_str( &(params->chrom_names[i]), first_arg);
 		params->chrom_lengths[i]=atoi(sec_arg);
 		fprintf(stderr, "\rLoading chromosome  %s ",params->chrom_names[i]);
 		params->chrom_seq[i] = faidx_fetch_seq( params->ref_fai, params->chrom_names[i], 0, params->chrom_lengths[i]-1, &loc_len);
 	}
-		
+
 	fclose(fai_file);
 }
 
@@ -71,7 +71,7 @@ void print_params( parameters* params)
 	int i;
 
 	printf( "BAM input: %s\n", params->bam_file);
-	
+
 	printf( "ref_genome: %s\n", params->ref_genome);
 
 }
@@ -91,12 +91,12 @@ FILE* safe_fopen( char* path, char* mode)
 	FILE* file;
 	char err[500];
 
-	file = fopen( path, mode);  
+	file = fopen( path, mode);
 	if( !file)
 	{
 		sprintf( err, "[TARDIS INPUT ERROR] Unable to open file %s in %s mode.", path, mode[0]=='w' ? "write" : "read");
 		print_error( err);
-		
+
 	}
 	return file;
 }
@@ -107,11 +107,11 @@ gzFile safe_fopen_gz( char* path, char* mode)
         gzFile file;
 	char err[500];
 
-	file = gzopen( path, mode);  
+	file = gzopen( path, mode);
 	if( !file)
 	{
 		sprintf( err, "[TARDIS INPUT ERROR] Unable to open file %s in %s mode.", path, mode[0]=='w' ? "write" : "read");
-		print_error( err);		
+		print_error( err);
 	}
 	return file;
 }
@@ -120,7 +120,7 @@ htsFile* safe_hts_open( char* path, char* mode)
 {
 	htsFile* bam_file;
 	char err[500];
-	
+
 	bam_file = hts_open( path, mode);
 	if( !bam_file)
 	{
@@ -143,13 +143,13 @@ int is_concordant( bam1_core_t bam_alignment_core, int min, int max)
 {
 	int flag = bam_alignment_core.flag;
 
-	if( ( flag & BAM_FPAIRED) == 0) 
+	if( ( flag & BAM_FPAIRED) == 0)
 	{
 		/* Read is single-end. Skip this by calling it concordant */
 		return 1;
 	}
 
-	if( ( flag & BAM_FPROPER_PAIR) == 0) 
+	if( ( flag & BAM_FPROPER_PAIR) == 0)
 	{
 		/* Not proper pair */
 		return 0;
@@ -179,7 +179,7 @@ int is_concordant( bam1_core_t bam_alignment_core, int min, int max)
 		return 0;
 	}
 
-	if( bam_alignment_core.tid != bam_alignment_core.mtid) 
+	if( bam_alignment_core.tid != bam_alignment_core.mtid)
 	{
 		/* On different chromosomes */
 		return 0;
@@ -245,19 +245,19 @@ char complement_char( char base)
 {
 	switch( base)
 	{
-		case 'A': 
+		case 'A':
 			return 'T';
 			break;
-		case 'C': 
+		case 'C':
 			return 'G';
 			break;
-		case 'G': 
+		case 'G':
 			return 'C';
 			break;
-		case 'T': 
+		case 'T':
 			return 'A';
 			break;
-		default: 
+		default:
 			return 'N';
 			break;
 	}
@@ -282,7 +282,7 @@ void set_str( char** target, char* source)
 	{
 		free( ( *target));
 	}
-	
+
 	if (source != NULL)
 	{
 		( *target) = ( char*) malloc( sizeof( char) * ( strlen( source) + 1));
@@ -377,7 +377,7 @@ void ins_char(char *ref, char *read, int start_origin, int start_dest, int len){
 	ref[ref_len+len]=0;
 	ref_len = ref_len+len;
 
-	for (i=0; i<len && i+start_dest<ref_len; i++){	 
+	for (i=0; i<len && i+start_dest<ref_len; i++){
 		//printf("%c", read[i + start_origin]);
 		ref[i + start_dest] = read[i + start_origin]; //'.';
 	}
@@ -448,7 +448,7 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 	inserted=0;
 	last_i_cigar = 0;
 	refptr = 0;
-	
+
 	while (i<strlen(md)){
 		if (isdigit(md[i])){
 			buf[j++]=md[i];
@@ -468,10 +468,10 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 					thisdel++;
 					//printf("thisdel %d	delcnt %d\n", thisdel, delcnt);
 					if (thisdel == delcnt){
-						
+
 						//printf("md i %d ", i);
-						i+=cigarlen[k]; 
-						//printf("now	%d.	md[i]=%c\n", i, md[i]);			
+						i+=cigarlen[k];
+						//printf("now	%d.	md[i]=%c\n", i, md[i]);
 						delcnt++; break;
 					}
 				}
@@ -480,7 +480,7 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 		else if (isalpha(md[i])){
 			inserted = 0;
 			edit_loc = 0;
-			
+
 			for (k=0; k<n_cigar; k++){
 				if (cigar[k] == 'M'){
 					edit_loc += cigarlen[k];
@@ -488,7 +488,7 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 				if (cigar[k] == 'I' && edit_loc <= refptr){
 					inserted += cigarlen[k];
 				}
-				
+
 			}
 			//printf("refptr added %d\n", inserted);
 			//printf("changing %d:%c %d:%c\n", refptr, read[refptr], (i+1), md[i]);
@@ -497,7 +497,7 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 			//printf("postedit refptr %d\n", refptr);
 			//printf("\npostedit\n%s\n%s\n%s\n", index, read, ref);
 		}
-		i++; 
-		//printf("lnow	%d.	md[i]=%c\n", i, md[i]);			
+		i++;
+		//printf("lnow	%d.	md[i]=%c\n", i, md[i]);
 	}
 }

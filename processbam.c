@@ -37,7 +37,7 @@ void load_bam( bam_info* in_bam, char* path)
 	/* Read in BAM header information */
 	bam_header = bam_hdr_read( ( bam_file->fp).bgzf);
 
-	get_sample_name( in_bam, bam_header->text); 
+	get_sample_name( in_bam, bam_header->text);
 	in_bam->bam_file = bam_file;
 	in_bam->bam_index = bam_index;
 	in_bam->bam_header = bam_header;
@@ -47,7 +47,7 @@ void load_bam( bam_info* in_bam, char* path)
 void read_alignment( bam_info* in_bam, parameters *params)
 {
 	bam1_core_t bam_alignment_core;
-	bam1_t*	bam_alignment;	
+	bam1_t*	bam_alignment;
 	hts_idx_t* bam_index;
 	int return_value;
 	int i;
@@ -65,14 +65,13 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	const uint32_t *cigar;
 	int n_cigar;
 	htsFile *bam_file;
-	
+
 	bam_hdr_t* bam_header;
-	char rand_loc[MAX_SEQ];	
+	char rand_loc[MAX_SEQ];
 	int result;
 	char md[MAX_SEQ];
 	int chrom_id;
 	int start; int end;
-	int maps_to_test = params->maps_to_test;
 	char map_chr[MAX_SEQ];
 	int map_tid;
 	int map_loc;
@@ -91,13 +90,6 @@ void read_alignment( bam_info* in_bam, parameters *params)
 
 	bam_alignment = bam_init1();
 	j=0;
-	
-//	while (j<maps_to_test){
-				
-	//		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
-
-	//		if (rand() % 181 != 0) <= where magic happens
-	// continue;
 
 	if (bam_index == NULL){
 		fprintf(stderr, "BAM index not found.\n");
@@ -116,16 +108,20 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	while( return_value != -1 ){
 
 		bam_alignment_core = bam_alignment->core;
-		
+
 		if (bam_alignment_core.flag & (BAM_FSECONDARY|BAM_FSUPPLEMENTARY)) // skip secondary and supplementary alignments
-			{
-				// hts_itr_destroy(iter);		
-				// it is ok to demux these and write out
-				return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
-				continue;
-			}
+		{
+			// hts_itr_destroy(iter);
+			// it is ok to demux these and write out
+			return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+			continue;
+		}
+		if (bam_alignment_core.flag & BAM_FUNMAP) {
+			printf("Read unmapped\n");
+		}
+
 		if (bam_aux_get(bam_alignment, "MD") == NULL){
-				return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);		
+				return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 				continue;
 		}
 
@@ -141,7 +137,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		strncpy( qual, bam_get_qual( bam_alignment), bam_alignment_core.l_qseq);
 		qual[bam_alignment_core.l_qseq] = '\0';
 		qual_to_ascii(qual);
-		
+
 		for( i = 0; i < strlen( sequence); i++){
 			next_char = base_as_char( bam_seqi( sequence, i));
 			read[i] = next_char;
@@ -166,8 +162,8 @@ void read_alignment( bam_info* in_bam, parameters *params)
 			else if (bam_cigar_opchr(cigar[i]) == 'I')
 				cigar_add_len -= bam_cigar_oplen(cigar[i]);
 		}
-		
-		if (clipped){ 
+
+		if (clipped){
 			//fprintf(stdout, "Clipped\n");
 			break;
 		}
@@ -179,7 +175,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		map_loc = bam_alignment_core.pos;
 
 		//fprintf(stdout, "map_tid: %d\t map_loc: %d\n", map_tid, map_loc);
-		
+
 		// Get chromosome name to never use again!
 		strcpy(map_chr, bam_header->target_name[map_tid]);
 
@@ -217,7 +213,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 				fprintf(stdout, "%d%c\n", bam_cigar_oplen(cigar[i]), bam_cigar_opchr(cigar[i]));
 			}
 			fprintf(stdout, "MD: %s\n", md);
-			
+
 			fprintf(stdout, "\npre\n%s\n%s\n", read2, ref_seq2);
 			fprintf(stdout, "\npos\n%s\n%s\n", read, ref_seq);
 			fprintf(stdout, "\ntotal aligned reads\n%d\n", aligned_read_count);
@@ -228,16 +224,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 			//fprintf(stdout, "\nread aligned\n%s\n%s\n", read, ref_seq);
 		}
 
-		
-		/*
-		if (ref_seq!=NULL)
-			free(ref_seq);
-		*/
-			
 		j++;
-
-		/* Alignment is correct; demux it here */
-		/* demux(); */
 
 		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 
@@ -276,6 +263,3 @@ void get_sample_name( bam_info* in_bam, char* header_text)
 	set_str( &( in_bam->sample_name), sample_name_buffer);
 	free( tmp_header);
 }
-
-
-		
