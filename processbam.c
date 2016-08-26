@@ -58,6 +58,11 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	char qual[MAX_SEQ];
 	char read2[MAX_SEQ];
 
+	BYTE hash[MAX_SEQ] = {0x0};
+	int max_readlen = 0;
+	SHA256_CTX ctx;
+	BYTE buf[SHA256_BLOCK_SIZE];
+
 	int read_len;
 	int ref_len;
 
@@ -83,6 +88,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	int cigar_add_len;
 	int clipped;
 	int aligned_read_count=0;
+	int reversed = 0;
 
 	bam_file = in_bam->bam_file;
 	bam_header = in_bam->bam_header;
@@ -101,24 +107,20 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		exit (EXIT_COMMON);
 	}
 
-
-
 	return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 
 	while( return_value != -1 ){
 
 		bam_alignment_core = bam_alignment->core;
 
-		if (bam_alignment_core.flag & (BAM_FSECONDARY|BAM_FSUPPLEMENTARY)) // skip secondary and supplementary alignments
+		if (bam_alignment_core.flag & (BAM_FSECONDARY|BAM_FSUPPLEMENTARY|BAM_FUNMAP)) // skip secondary, supplementary and unmapped alignments
 		{
 			// hts_itr_destroy(iter);
 			// it is ok to demux these and write out
 			return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 			continue;
 		}
-		if (bam_alignment_core.flag & BAM_FUNMAP) {
-			printf("Read unmapped\n");
-		}
+		reversed = bam_alignment_core.flag & BAM_FREVERSE;
 
 		if (bam_aux_get(bam_alignment, "MD") == NULL){
 				return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
@@ -138,12 +140,19 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		qual[bam_alignment_core.l_qseq] = '\0';
 		qual_to_ascii(qual);
 
-		for( i = 0; i < strlen( sequence); i++){
-			next_char = base_as_char( bam_seqi( sequence, i));
-			read[i] = next_char;
+		int seq_len = strlen( sequence);
+		for( i = 0; i < seq_len; i++){
+			read[i] = base_as_char( bam_seqi( sequence, i));
+			if(reversed){
+				hash[(seq_len-1)-i] += complement_char(read[i]);
+			}
+			else{
+				hash[i] += read[i];
+			}
 		}
 		read[i] = '\0';
 		read_len = i;
+		if(read_len > max_readlen) max_readlen = read_len;
 		strcpy(read2, read);
 
 		clipped=0;
@@ -202,6 +211,10 @@ void read_alignment( bam_info* in_bam, parameters *params)
 
 		//		//fprintf(stdout, "\npos\n%s\n%s\n", read, ref_seq);
 
+		if (bam_alignment_core.flag & BAM_FREVERSE) {
+			printf("Reverse strand is found\n%s\n%s\n%s\n", bam_get_qname(bam_alignment), read2, ref_seq2);
+		}
+
 		if (strcmp(read, ref_seq)){
 			fprintf(stdout, "%s\n", bam_get_qname(bam_alignment));
 			fprintf(stdout, "%s\n", read);
@@ -229,7 +242,38 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 
 	}
-	fprintf(stdout, "\nAll reads are matched. Total aligned read count is %d\n", aligned_read_count);
+
+	sha256_init(&ctx);
+	sha256_update(&ctx, hash, max_readlen);
+	sha256_final(&ctx, buf);
+
+	BYTE hash2[MAX_SEQ] = {0x0};
+	int max_readlen2 = 0;
+	SHA256_CTX ctx2;
+	BYTE buf2[SHA256_BLOCK_SIZE];
+	for(i=0; i<params->num_fastq_files;i++){
+		gzFile fp = gzopen(params->fastq_files[i], "r");
+		kseq_t *seq = kseq_init(fp);
+		int l;
+		while ((l = kseq_read(seq)) >= 0) {
+			for(j=0;j<strlen(seq->seq.s);j++){
+				printf("%c", seq->seq.s[j]);
+				hash2[j] += seq->seq.s[j];
+			}
+			if(max_readlen2 < strlen(seq->seq.s)) max_readlen2 = strlen(seq->seq.s);
+		}
+	}
+
+	sha256_init(&ctx2);
+	sha256_update(&ctx2, hash2, max_readlen2);
+	sha256_final(&ctx2, buf2);
+
+	int hash_result = 1;
+	for(i=0;i<SHA256_BLOCK_SIZE;i++){
+		hash_result = hash_result & (buf[i]==buf2[i]);
+	}
+
+	fprintf(stdout, "\nAll reads are matched. Total aligned read count is %d\nBamhash result is %d\n", aligned_read_count, hash_result);
 }
 
 
