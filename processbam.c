@@ -257,7 +257,6 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		int l;
 		while ((l = kseq_read(seq)) >= 0) {
 			for(j=0;j<strlen(seq->seq.s);j++){
-				printf("%c", seq->seq.s[j]);
 				hash2[j] += seq->seq.s[j];
 			}
 			if(max_readlen2 < strlen(seq->seq.s)) max_readlen2 = strlen(seq->seq.s);

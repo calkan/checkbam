@@ -2,7 +2,7 @@
 
 verifybam is a BAM file integrity verification tool.
 
-Read mapping is verified by applying CIGAR and MD operations to both original read and corresponding sequence in reference genome. That's why it is crucial to use the same reference genome that is used in alignment process.
+Read mapping is verified by applying CIGAR and MD operations to both original read and corresponding sequence in reference genome. Also reads are cross-checked against original FastQ files to see if any reads are missing. It is crucial to use the same reference genome and FastQ files that are used in alignment process.
 
 ## Download
 
@@ -29,20 +29,20 @@ This command should create the necessary executable 'verifybam'.
 
 ```make install```
 
-To install verifybam and use from shell.
+To install verifybam.
 
 ## Usage
 
-Available options can be obtained by running verifybam without any parameter.
+Available options can be obtained by running verifybam without any parameters.
 
 ```
 VERIFYBAM: BAM validity checking tool.
-Version 0.1-alpha
-	Last update: September 21, 2015, build date: Mon Aug  1 21:01:34 EEST 2016
+Version 0.2-alpha
+	Last update: August 01, 2016, build date: Fri Aug 26 08:19:31 EEST 2016
 
-	--bamlist   [bamlist file] : A text file that lists input BAM files one file per line.
-	--input [BAM files]        : Input files in sorted and indexed BAM format. You can pass multiple BAMs using multiple --input parameters.
-	--ref   [reference genome] : Reference genome in FASTA format.
-	--version                  : Print version and exit.
-	--help                     : Print this help screen and exit.
+	--input [BAM file]   : Input file in sorted and indexed BAM format.
+	--ref   [reference]  : Reference genome in FASTA format.
+	--fastq [Fastq file] : A fastq file that contains original reads of input BAM file. Can be given multiple times.
+	--version            : Print version and exit.
+	--help               : Print this help screen and exit.
 ```
