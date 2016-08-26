@@ -1,5 +1,5 @@
-VERIFYBAM_VERSION := "0.2-alpha"
-VERIFYBAM_UPDATE := "August 01, 2016"
+VERIFYBAM_VERSION := "0.3-alpha"
+VERIFYBAM_UPDATE := "August 26, 2016"
 VERIFYBAM_DEBUG := 1
 BUILD_DATE := "$(shell date)"
 CC=gcc

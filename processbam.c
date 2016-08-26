@@ -209,12 +209,6 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		// Strange condition. Ref genome has N base, MD field suggest different.
 		fix_n_base(ref_seq, read);
 
-		//		//fprintf(stdout, "\npos\n%s\n%s\n", read, ref_seq);
-
-		if (bam_alignment_core.flag & BAM_FREVERSE) {
-			printf("Reverse strand is found\n%s\n%s\n%s\n", bam_get_qname(bam_alignment), read2, ref_seq2);
-		}
-
 		if (strcmp(read, ref_seq)){
 			fprintf(stdout, "%s\n", bam_get_qname(bam_alignment));
 			fprintf(stdout, "%s\n", read);
