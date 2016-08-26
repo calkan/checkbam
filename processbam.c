@@ -89,6 +89,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	int clipped;
 	int aligned_read_count=0;
 	int reversed = 0;
+	int read_count = 0;
 
 	bam_file = in_bam->bam_file;
 	bam_header = in_bam->bam_header;
@@ -113,19 +114,16 @@ void read_alignment( bam_info* in_bam, parameters *params)
 
 		bam_alignment_core = bam_alignment->core;
 
-		if (bam_alignment_core.flag & (BAM_FSECONDARY|BAM_FSUPPLEMENTARY|BAM_FUNMAP)) // skip secondary, supplementary and unmapped alignments
+		if (bam_alignment_core.flag & (BAM_FSECONDARY|BAM_FSUPPLEMENTARY)) // skip secondary, supplementary and unmapped alignments
 		{
 			// hts_itr_destroy(iter);
 			// it is ok to demux these and write out
+			aligned_read_count++;
 			return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 			continue;
 		}
-		reversed = bam_alignment_core.flag & BAM_FREVERSE;
 
-		if (bam_aux_get(bam_alignment, "MD") == NULL){
-				return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
-				continue;
-		}
+		reversed = bam_alignment_core.flag & BAM_FREVERSE;
 
 		// Pull out the cigar field from the alignment
 		cigar = bam_get_cigar(bam_alignment);
@@ -154,6 +152,12 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		read_len = i;
 		if(read_len > max_readlen) max_readlen = read_len;
 		strcpy(read2, read);
+
+		// Need to look after hashing
+		if (bam_aux_get(bam_alignment, "MD") == NULL){
+			return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+			continue;
+		}
 
 		clipped=0;
 		cigar_add_len = 0;
@@ -266,7 +270,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		hash_result = hash_result & (buf[i]==buf2[i]);
 	}
 
-	fprintf(stdout, "\nAll reads are matched. Total aligned read count is %d\nBamhash result is %d\n", aligned_read_count, hash_result);
+	fprintf(stdout, "Read count %d\nAll reads are matched. Total aligned read count is %d\nBamhash result is %d\n",read_count, aligned_read_count, hash_result);
 }
 
 
