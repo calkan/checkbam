@@ -215,53 +215,34 @@ int is_concordant( bam1_core_t bam_alignment_core, int min, int max)
 	return 1;
 }
 
+char iupac_base[16]       = {'0','A','C','M','G','R','S','V','T','W','Y','H','K','D','B','N'};
+int  iupac_base_map[26]        = {1,14,2,13,0,0,4,11,0,0,12,0,3,15,0,0,0,5,6,8,0,7,9,0,10,0};
+char iupac_complements_map[26] = {'T','V','G','H','X','X','C','D','X','X','M','X','K','N','X','X','X','R','S','A','X','B','W','X','Y','X'};
+
 /* Decode 4-bit encoded bases to their corresponding characters */
 char base_as_char( int base_as_int)
 {
-	if( base_as_int == 1)
-	{
-		return 'A';
-	}
-	else if( base_as_int == 2)
-	{
-		return 'C';
-	}
-	else if( base_as_int == 4)
-	{
-		return 'G';
-	}
-	else if( base_as_int == 8)
-	{
-		return 'T';
-	}
-	else if( base_as_int == 15)
-	{
-		return 'N';
-	}
+	return iupac_base[base_as_int];
+}
+
+int char_as_base( char base){
+	if(base >= 'a' && base <='z')
+		base += ('A' - 'a');
+
+	base -= 'A';
+
+	return iupac_base_map[base];
 }
 
 /* Return the complement of a base */
 char complement_char( char base)
 {
-	switch( base)
-	{
-		case 'A':
-			return 'T';
-			break;
-		case 'C':
-			return 'G';
-			break;
-		case 'G':
-			return 'C';
-			break;
-		case 'T':
-			return 'A';
-			break;
-		default:
-			return 'N';
-			break;
-	}
-	return 'X';
+	if(base >= 'a' && base <='z')
+		base += ('A' - 'a');
+
+	base -= 'A';
+
+	return iupac_complements_map[base];
 }
 
 /* Add 33 to the integer value of the qual characters to convert them to ASCII */

@@ -58,10 +58,10 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	char qual[MAX_SEQ];
 	char read2[MAX_SEQ];
 
-	BYTE hash[MAX_SEQ] = {0x0};
-	int max_readlen = 0;
 	SHA256_CTX ctx;
+	BYTE hash_input_read[MAX_SEQ];
 	BYTE buf[SHA256_BLOCK_SIZE];
+	BYTE hash_bam[SHA256_BLOCK_SIZE] = {0x0};
 
 	int read_len;
 	int ref_len;
@@ -89,7 +89,6 @@ void read_alignment( bam_info* in_bam, parameters *params)
 	int clipped;
 	int aligned_read_count=0;
 	int reversed = 0;
-	int read_count = 0;
 
 	bam_file = in_bam->bam_file;
 	bam_header = in_bam->bam_header;
@@ -116,8 +115,6 @@ void read_alignment( bam_info* in_bam, parameters *params)
 
 		if (bam_alignment_core.flag & (BAM_FSECONDARY|BAM_FSUPPLEMENTARY)) // skip secondary, supplementary and unmapped alignments
 		{
-			// hts_itr_destroy(iter);
-			// it is ok to demux these and write out
 			aligned_read_count++;
 			return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 			continue;
@@ -142,15 +139,23 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		for( i = 0; i < seq_len; i++){
 			read[i] = base_as_char( bam_seqi( sequence, i));
 			if(reversed){
-				hash[(seq_len-1)-i] += complement_char(read[i]);
+				hash_input_read[(seq_len-1)-i] = complement_char(read[i]);
 			}
 			else{
-				hash[i] += read[i];
+				hash_input_read[i] = read[i];
 			}
 		}
 		read[i] = '\0';
 		read_len = i;
-		if(read_len > max_readlen) max_readlen = read_len;
+
+		sha256_init(&ctx);
+		sha256_update(&ctx, hash_input_read, read_len);
+		sha256_final(&ctx, buf);
+
+		for( i = 0; i < SHA256_BLOCK_SIZE; i++){
+			hash_bam[i] += buf[i];
+		}
+		
 		strcpy(read2, read);
 
 		// Need to look after hashing
@@ -177,7 +182,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		}
 
 		if (clipped){
-			//fprintf(stdout, "Clipped\n");
+			fprintf(stdout, "Hard Clipped\n");
 			break;
 		}
 
@@ -213,7 +218,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		// Strange condition. Ref genome has N base, MD field suggest different.
 		fix_n_base(ref_seq, read);
 
-		if (strcmp(read, ref_seq)){
+		if (readcmp(read, ref_seq)){
 			fprintf(stdout, "%s\n", bam_get_qname(bam_alignment));
 			fprintf(stdout, "%s\n", read);
 			fprintf(stdout, "%s\n",	qual);
@@ -226,7 +231,7 @@ void read_alignment( bam_info* in_bam, parameters *params)
 			fprintf(stdout, "MD: %s\n", md);
 
 			fprintf(stdout, "\npre\n%s\n%s\n", read2, ref_seq2);
-			fprintf(stdout, "\npos\n%s\n%s\n", read, ref_seq);
+			fprintf(stdout, "\npos\n%d %s\n%d %s\n",strlen(read), read, strlen(ref_seq), ref_seq);
 			fprintf(stdout, "\ntotal aligned reads\n%d\n", aligned_read_count);
 			return;
 		}
@@ -236,41 +241,47 @@ void read_alignment( bam_info* in_bam, parameters *params)
 		}
 
 		j++;
+		if((j % 100000) == 0){
+			fprintf(stdout, "Number of processed reads is %d\r", aligned_read_count);
+		}
 
 		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 
 	}
+	fprintf(stdout, "\n\n");
 
-	sha256_init(&ctx);
-	sha256_update(&ctx, hash, max_readlen);
-	sha256_final(&ctx, buf);
-
-	BYTE hash2[MAX_SEQ] = {0x0};
-	int max_readlen2 = 0;
-	SHA256_CTX ctx2;
-	BYTE buf2[SHA256_BLOCK_SIZE];
+	BYTE hash_fastq[MAX_SEQ] = {0x0};
+	int count = 0;
 	for(i=0; i<params->num_fastq_files;i++){
 		gzFile fp = gzopen(params->fastq_files[i], "r");
 		kseq_t *seq = kseq_init(fp);
 		int l;
 		while ((l = kseq_read(seq)) >= 0) {
-			for(j=0;j<strlen(seq->seq.s);j++){
-				hash2[j] += seq->seq.s[j];
+			int k;
+			for( k = 0; k < strlen(seq->seq.s); k++){
+				hash_input_read[k] = seq->seq.s[k];
 			}
-			if(max_readlen2 < strlen(seq->seq.s)) max_readlen2 = strlen(seq->seq.s);
+			
+			sha256_init(&ctx);
+			sha256_update(&ctx, hash_input_read, strlen(seq->seq.s));
+			sha256_final(&ctx, buf);
+
+			for( k = 0; k < SHA256_BLOCK_SIZE; k++){
+				hash_fastq[k] += buf[k];
+			}
+			count++;
+			if((count % 100000) == 0){
+				fprintf(stdout, "Calculating hash of fastq files. Processed %d reads\r", count);
+			}
 		}
 	}
 
-	sha256_init(&ctx2);
-	sha256_update(&ctx2, hash2, max_readlen2);
-	sha256_final(&ctx2, buf2);
-
 	int hash_result = 1;
 	for(i=0;i<SHA256_BLOCK_SIZE;i++){
-		hash_result = hash_result & (buf[i]==buf2[i]);
+		hash_result = hash_result & (hash_bam[i]==hash_fastq[i]);
 	}
 
-	fprintf(stdout, "Read count %d\nAll reads are matched. Total aligned read count is %d\nBamhash result is %d\n",read_count, aligned_read_count, hash_result);
+	fprintf(stdout, "\nAll reads are matched. Total aligned read count is %d\nBamhash result is %d\n",aligned_read_count, hash_result);
 }
 
 
@@ -278,7 +289,7 @@ void get_sample_name( bam_info* in_bam, char* header_text)
 {
 	/* Delimit the BAM header text with tabs and newlines */
 
-				char *tmp_header = NULL;
+	char *tmp_header = NULL;
 	set_str( &( tmp_header), header_text);
 	char* p = strtok( tmp_header, "\t\n");
 	char sample_name_buffer[1024];
@@ -303,4 +314,22 @@ void get_sample_name( bam_info* in_bam, char* header_text)
 
 	set_str( &( in_bam->sample_name), sample_name_buffer);
 	free( tmp_header);
+}
+
+int readcmp(char* read1, char* read2){
+	int len1 = strlen(read1);
+	int len2 = strlen(read2);
+
+	if(len1!=len2){
+		return 1;
+	}
+
+	int i;
+	for(i=0; i<len1; i++){
+		if(char_as_base(read1[i]) & char_as_base(read2[i]) <= 0){
+			fprintf(stdout, "Not equal: %c %c\n", read1[i], read2[i]);
+			return 1;
+		}
+	}
+	return 0;
 }

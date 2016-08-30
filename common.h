@@ -61,6 +61,7 @@ htsFile* safe_hts_open( char* path, char* mode);
 int is_proper( int flag);
 int is_concordant( bam1_core_t bam_alignment_core, int min, int max);
 char base_as_char( int base_as_int);
+int char_as_base( char base);
 char complement_char( char base);
 void qual_to_ascii( char* qual);
 
