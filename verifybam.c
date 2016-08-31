@@ -34,7 +34,6 @@ int main( int argc, char** argv)
 
 	params->ref_fai = fai_load(params->ref_genome);
 
-
 	load_chrom_properties(params);
 
 	fprintf(stderr, "\n");
@@ -45,10 +44,6 @@ int main( int argc, char** argv)
 	in_bam->sample_name = NULL;
 	load_bam( in_bam, params->bam_file);
 
-	/* Initial read */
-	read_alignment(in_bam, params);
-	/* BAM is loaded, min/max/avg/std are calculated. Now, extract FASTQs of discordants, OEAs, and orphans */
-
-
-	return EXIT_SUCCESS;
+	/* Run actual verification process */
+	return read_alignment(in_bam, params);
 }

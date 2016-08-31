@@ -418,8 +418,8 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 		del_char(ref, ref_len - (soft_clips[i].length), soft_clips[i].length);
 	}
 
-	char index[100] = "'         '         '         '         '         '         '         '         '         '         ";
-	index[100] = '\0';
+	//char index[100] = "'         '         '         '         '         '         '         '         '         '         ";
+	//index[100] = '\0';
 	//printf("\ndel\n%s\n%s\n%s\n", index, read, ref);
 
 	j=0;
