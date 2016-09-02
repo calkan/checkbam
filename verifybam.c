@@ -17,7 +17,7 @@ int main( int argc, char** argv)
 	srand(time(NULL));
 
 	/* Parse command line arguments */
-	return_value = parse_command_line( argc, argv, params);
+	return_value = parse_command_line( argc, argv, params, EXE_VERIFYBAM);
 	if( return_value == 0)
 	{
 		exit( EXIT_SUCCESS);
@@ -27,7 +27,7 @@ int main( int argc, char** argv)
 		exit( return_value);
 	}
 
-	if ( VERIFYBAM_DEBUG)
+	if ( DEBUG)
 	{
 		print_params( params);
 	}
