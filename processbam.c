@@ -7,6 +7,50 @@
 /* tardis headers */
 #include "processbam.h"
 
+void init_queue(Queue* queue){
+	if(queue == NULL){
+		queue = malloc(sizeof(Queue));
+	}
+	queue->head = NULL;
+	queue->tail = NULL;
+	queue->len = 0;
+}
+
+void push(Queue* queue, job_t* job){
+	Node* node = malloc(sizeof(Node));
+	node->job = job;
+	node->next = NULL;
+
+	if(queue->tail == NULL){
+		queue->tail = node;
+		queue->head = node;
+	}
+	else{
+		queue->tail->next = node;
+		queue->tail = node;
+	}
+	queue->len += 1;
+}
+
+void pop(Queue* queue, job_t** job){
+	// Queue is empty
+	if(queue->head == NULL){
+		(*job) = NULL;
+		return;
+	}
+	// Queue has only one element
+	else if(queue->head->next == NULL){
+		queue->tail = NULL;
+	}
+	(*job) = queue->head->job;
+	Node *temp = queue->head;
+	queue->head = queue->head->next;
+	queue->len--;
+
+	if(temp!=NULL)
+		free(temp);
+}
+
 void load_bam( bam_info* in_bam, char* path)
 {
 	/* Variables */
@@ -82,32 +126,19 @@ void *read_thread(void *_args)
   while(_stop_flag==0){
     pthread_mutex_lock(&(args->buffer.mutex));
 
-		if(args->buffer.len == 0){
+		if(args->buffer.queue.len == 0){
 			pthread_cond_wait(&(args->buffer.can_consume), &(args->buffer.mutex));
 		}
 
-		(args->buffer.len)--;
-		job = (args->buffer.stack)[args->buffer.len];
+		pop( &(args->buffer.queue), &job);
 
-		int flag = 0;
-		if(job->job_type == END_SIGNAL){
-			if(args->buffer.len > 0){
-				job_t* temp = (args->buffer.stack)[0];
-				(args->buffer.stack)[0] = job;
-				job = temp;
-				fprintf(stdout, "Changed end signal with another job %d %lu %d\n", args->thread_id, args->buffer.len, temp->job_type);
-			}
-			else{
-				flag = 1;
-			}
-		}
 		pthread_cond_signal(&(args->buffer.can_produce));
     pthread_mutex_unlock(&(args->buffer.mutex));
 
-		if(flag == 1)
+		if(job->job_type == END_SIGNAL){
 			break;
-
-		if(job->job_type == READ_SAMPLE){
+		}
+		else if(job->job_type == READ_SAMPLE){
 			bam_alignment = (bam1_t*) job->data;
 			if(bam_alignment!=NULL && _stop_flag==0){
 
@@ -235,41 +266,25 @@ void *read_thread(void *_args)
 					args->aligned_read_count++;
 				}
 
-				if((args->aligned_read_count % 100000) == 0){
-					fprintf(stdout, "Thread %d: number of processed reads is %d\n", args->thread_id, args->aligned_read_count);
+				/*if((args->aligned_read_count % 500000) == 0){
+					fprintf(stdout, "Thread %d: number of processed reads is %d\nCurrent buffer size is %d\n", args->thread_id, args->aligned_read_count, args->buffer.queue.len);
 					fflush(stdout);
-				}
+				}*/
 	    }
 		}
-		else if(job->job_type == HASH_SAMPLE){
-			hash_read = (char*) job->data;
-			md5_init(&ctx);
-			md5_update(&ctx, hash_read, strlen(hash_read));
-			md5_final(&ctx, buf);
-
-			for( k = 0; k < MD5_BLOCK_SIZE; k++){
-				args->hash_fastq[k] += buf[k];
-			}
-
-			args->hashed_read_count++;
-			if((args->hashed_read_count % 100000) == 0){
-				fprintf(stdout, "Thread %d hash of fastq files. Processed %d reads\n", args->thread_id, args->hashed_read_count);
-				fflush(stdout);
-			}
-		}
-
-  }
+		if(job!=NULL)
+			free(job);
+	}
   pthread_exit(NULL);
 }
 
 void send_job(job_t* job, thread_args_t* args){
 	pthread_mutex_lock(&(args->buffer.mutex));
-	if(args->buffer.len == BUFFER_SIZE) {
+	if(args->buffer.queue.len == BUFFER_SIZE) {
 			pthread_cond_wait(&(args->buffer.can_produce), &(args->buffer.mutex));
 	}
 
-	args->buffer.stack[args->buffer.len] = job;
-	(args->buffer.len)++;
+	push( &(args->buffer.queue), job);
 
 	pthread_cond_signal(&(args->buffer.can_consume));
 	pthread_mutex_unlock(&(args->buffer.mutex));
@@ -282,7 +297,7 @@ int read_alignment( bam_info* in_bam, parameters *params)
 	htsFile *bam_file;
 	int return_value;
 	int i,j,k,t;
-	int aligned_read_count;
+	int aligned_read_count = 0;
 	pthread_t threads[params->threads];
 	thread_args_t* args[params->threads];
 
@@ -314,12 +329,10 @@ int read_alignment( bam_info* in_bam, parameters *params)
      args[t]->thread_id = t;
 		 for(i=0; i<MD5_BLOCK_SIZE; i++){
 			 args[t]->hash_bam[i] = 0;
-			 args[t]->hash_fastq[i] = 0;
 		 }
 		 args[t]->aligned_read_count = 0;
-		 args[t]->hashed_read_count = 0;
 		 args[t]->params = params;
-		 args[t]->buffer.len = 0;
+		 init_queue( &(args[t]->buffer.queue));
 		 pthread_mutex_init(&(args[t]->buffer.mutex), NULL);
 		 pthread_cond_init(&(args[t]->buffer.can_produce), NULL);
 		 pthread_cond_init(&(args[t]->buffer.can_consume), NULL);
@@ -331,6 +344,11 @@ int read_alignment( bam_info* in_bam, parameters *params)
      }
   }
 
+	struct timespec start, finish;
+	struct timespec io_start, io_finish;
+	double elapsed;
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
 	j=0;
 	return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 
@@ -346,6 +364,11 @@ int read_alignment( bam_info* in_bam, parameters *params)
 		bam_alignment = bam_init1();
 		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 		j++;
+
+		if((j % 500000) == 0){
+			fprintf(stdout, "Total IO READ COUNT %d\r", j);
+			fflush(stdout);
+		}
 	}
 
 	BYTE hash_bam[MD5_BLOCK_SIZE] = {0x0};
@@ -367,8 +390,13 @@ int read_alignment( bam_info* in_bam, parameters *params)
 		}
   }
 
-	fprintf(stdout, "\nAll reads are matched.\nTotal aligned read count is %d\n",aligned_read_count);
-	fprintf(stdout, "\nBamhash:\n");
+	clock_gettime(CLOCK_MONOTONIC, &finish);
+	elapsed = (finish.tv_sec - start.tv_sec);
+	elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
+
+	fprintf(stdout, "\nAll reads are matched.\nTotal aligned read count is %d <> %d\n", aligned_read_count, j);
+	fprintf(stdout, "It took %f seconds to finish\n", elapsed);
+	fprintf(stdout, "Bamhash:\n");
 	for( k = 0; k < MD5_BLOCK_SIZE; k++){
 		fprintf(stdout, "%x", hash_bam[k]);
 	}
