@@ -4,23 +4,23 @@
 /* htslib headers */
 #include <htslib/sam.h>
 #include <htslib/hts.h>
+#include <htslib/kseq.h>
 #include <memory.h>
 #include <string.h>
 #include <zlib.h>
 #include <pthread.h>
 
-#include "kseq.h"
-#include "sha256.h"
+#include "md5.h"
 #include "common.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define BUFFER_SIZE 10000
+#define BUFFER_SIZE 1000000
 #define READ_SAMPLE 1
 #define HASH_SAMPLE 2
 #define END_SIGNAL 0
 
 /* Sample this many fragments to calculate avg/median/std per library */
-#define SAMPLEFRAG 1000000
+#define SAMPLEFRAG 100000
 
 /* Maximum sequence/quality length */
 #define MAX_SEQ 1000
@@ -43,9 +43,19 @@ typedef struct _job{
 	void* data;
 } job_t;
 
+typedef struct _Node{
+	struct _Node* next;
+	job_t* job;
+} Node;
+
+typedef struct _Queue{
+	Node *head;
+	Node *tail;
+	int len;
+} Queue;
+
 typedef struct _buffer{
-	job_t* stack[BUFFER_SIZE];
-	size_t len;
+	Queue queue;
 	pthread_mutex_t mutex;
 	pthread_cond_t can_produce;
   pthread_cond_t can_consume;
@@ -54,41 +64,21 @@ typedef struct _buffer{
 typedef struct _thread_data {
    int thread_id;
    buffer_t buffer;
-	 BYTE hash_bam[SHA256_BLOCK_SIZE];
-	 BYTE hash_fastq[SHA256_BLOCK_SIZE];
+	 BYTE hash_bam[MD5_BLOCK_SIZE];
 	 int aligned_read_count;
-	 int hashed_read_count;
 	 parameters *params;
 } thread_args_t;
 
-
-typedef struct _hash_buffer{
-	char*	stack[BUFFER_SIZE];
-	size_t len;
-	int end_signal;
-	pthread_mutex_t mutex;
-	pthread_cond_t can_produce;
-  pthread_cond_t can_consume;
-} hash_buffer_t;
-
-
-typedef struct _hash_thread_data{
-	int thread_id;
-	hash_buffer_t buffer;
-	BYTE hash[SHA256_BLOCK_SIZE];
-	int hashed_read_count;
-	parameters *params;
-} hash_thread_args_t;
 
 void load_bam( bam_info* in_bam, char* path);
 int read_alignment( bam_info* in_bam, parameters *params);
 int readcmp(char* read1, char* read2);
 
-
-
 /* BAM Utility functions */
 void get_sample_name( bam_info* in_bam, char* header_text);
 
-
+void init_queue(Queue* queue);
+void push(Queue* queue, job_t* job);
+void pop(Queue* queue, job_t** job);
 
 #endif
