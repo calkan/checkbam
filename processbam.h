@@ -4,13 +4,13 @@
 /* htslib headers */
 #include <htslib/sam.h>
 #include <htslib/hts.h>
+#include <htslib/kseq.h>
 #include <memory.h>
 #include <string.h>
 #include <zlib.h>
 #include <pthread.h>
 
-#include "kseq.h"
-#include "sha256.h"
+#include "md5.h"
 #include "common.h"
 KSEQ_INIT(gzFile, gzread)
 
@@ -54,8 +54,8 @@ typedef struct _buffer{
 typedef struct _thread_data {
    int thread_id;
    buffer_t buffer;
-	 BYTE hash_bam[SHA256_BLOCK_SIZE];
-	 BYTE hash_fastq[SHA256_BLOCK_SIZE];
+	 BYTE hash_bam[MD5_BLOCK_SIZE];
+	 BYTE hash_fastq[MD5_BLOCK_SIZE];
 	 int aligned_read_count;
 	 int hashed_read_count;
 	 parameters *params;
@@ -75,7 +75,7 @@ typedef struct _hash_buffer{
 typedef struct _hash_thread_data{
 	int thread_id;
 	hash_buffer_t buffer;
-	BYTE hash[SHA256_BLOCK_SIZE];
+	BYTE hash[MD5_BLOCK_SIZE];
 	int hashed_read_count;
 	parameters *params;
 } hash_thread_args_t;

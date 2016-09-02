@@ -20,6 +20,7 @@
 #define RETURN_ERROR 1
 
 #define MAX_BAMS 256
+#define MAX_FASTQS 1000
 
 // Track memory usage
 extern long long memUsage;
@@ -31,13 +32,15 @@ typedef struct _params
 	char* ref_genome; /* path to reference genome - fasta */
 	char* bam_file; /* path to bam file - bam */
 	int threads; /* number of threads to use for parallel mrFAST, and maybe future parallelization of TARDIS */
-	char* fastq_files[100]; /* List of maximum number of 100 fastq files to use for validation. */
-	int num_fastq_files; /* Actual number of fastq files */
 	int num_chrom; /* number of chromosomes */
 	int* chrom_lengths; /* lengths of the chromosomes */
 	char** chrom_names; /* names of the chromosomes */
 	char **chrom_seq; /* chromosomes */
 	faidx_t* ref_fai;
+
+	char* fastq_list; /* File address that holds absolute path of fastq files */
+	char* fastq_files[MAX_FASTQS]; /* List of fastq files to compute hash. */
+	int num_fastq_files; /* Actual number of fastq files */
 } parameters;
 
 typedef struct operation_s {
