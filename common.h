@@ -41,6 +41,7 @@ typedef struct _params
 	char* fastq_list; /* File address that holds absolute path of fastq files */
 	char* fastq_files[MAX_FASTQS]; /* List of fastq files to compute hash. */
 	int num_fastq_files; /* Actual number of fastq files */
+	char* output_file;
 } parameters;
 
 typedef struct operation_s {

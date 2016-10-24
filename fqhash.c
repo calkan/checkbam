@@ -54,17 +54,25 @@ int main( int argc, char** argv)
 
 			j++;
 			if((j % 100000) == 0){
-				fprintf(stdout, "Processed %d reads\n", j);
+				fprintf(stdout, "Processed %d reads\r", j);
 				fflush(stdout);
 			}
 		}
 	}
 
-	fprintf(stdout, "Hash of fastq files:\n");
-	for( k = 0; k < MD5_BLOCK_SIZE; k++){
-		fprintf(stdout, "%x", hash_fastq[k]);
+	FILE* outstream = stdout;
+	if(params->output_file != NULL){
+		 outstream = fopen(params->output_file, "w");
 	}
-	fprintf(stdout, "\n");
+	
+	for( k = 0; k < MD5_BLOCK_SIZE; k++){
+		fprintf(outstream, "%x", hash_fastq[k]);
+	}
+	fprintf(outstream, "\n");
+
+	if(params->output_file != NULL){
+		 fclose(outstream);
+	}
 
 	return RETURN_SUCCESS;
 }

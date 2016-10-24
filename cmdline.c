@@ -15,6 +15,7 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 		{"ref"		, required_argument,	0, 'f'},
 		{"fastq"	, required_argument,	0, 'q'},
 		{"fq-list"	, required_argument,	0, 'l'},
+		{"output"	, required_argument,	0, 'o'},
 		{"help"		, no_argument,			0, 'h'},
 		{"threads"	, required_argument,	0, 't'},
 		{"version"	, no_argument,			0, 'v'},
@@ -27,7 +28,7 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 		return 0;
 	}
 
-	while( ( o = getopt_long( argc, argv, "hv:i:f:t:q:l:", long_options, &index)) != -1)
+	while( ( o = getopt_long( argc, argv, "hv:i:f:t:o:q:l:", long_options, &index)) != -1)
 	{
 		switch(o)
 		{
@@ -42,6 +43,10 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 			case 'q':
 				set_str( &( params->fastq_files[params->num_fastq_files]), optarg);
 				params->num_fastq_files++;
+			break;
+
+			case 'o':
+				set_str( &( params->output_file), optarg);
 			break;
 
 			case 'l':
@@ -144,7 +149,8 @@ void print_help( int exe)
 		fprintf( stdout, "\nFQHASH: Multiple FASTQ file hashing tool.\n");
 		fprintf( stdout, "Version %s\n\tLast update: %s, build date: %s\n\n", VERSION, UPDATE, BUILD_DATE);
 		fprintf( stdout, "\t--fastq [Fastq file] : A fastq file.\n");
-		fprintf( stdout, "\t--fastq-list [file]  : A file that contains addresses of multiple fastq files.\n");
+		fprintf( stdout, "\t--fq-list [file]  : A file that contains addresses of multiple fastq files.\n");
+		fprintf( stdout, "\t--output [file]      : Output file to write final hash.\n");
 		fprintf( stdout, "\t--version            : Print version and exit.\n");
 		fprintf( stdout, "\t--help               : Print this help screen and exit.\n\n");
 	}
