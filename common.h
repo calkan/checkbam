@@ -5,6 +5,16 @@
 #include <htslib/hts.h>
 #include <htslib/faidx.h>
 #include <zlib.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/file.h>
+#include <fcntl.h>
+#include <errno.h>
 
 /* Exit Codes */
 #define EXIT_SUCCESS 0
@@ -22,6 +32,8 @@
 #define MAX_BAMS 256
 #define MAX_FASTQS 1000
 
+#define DAEMON_LOCK "/verifybamdaemonlock"
+
 // Track memory usage
 extern long long memUsage;
 
@@ -37,6 +49,7 @@ typedef struct _params
 	char** chrom_names; /* names of the chromosomes */
 	char **chrom_seq; /* chromosomes */
 	faidx_t* ref_fai;
+	short daemon; /* running mode of verifybam */
 
 	char* fastq_list; /* File address that holds absolute path of fastq files */
 	char* fastq_files[MAX_FASTQS]; /* List of fastq files to compute hash. */
@@ -86,5 +99,7 @@ void del_char(char *ref, int start, int len);
 void ins_char(char *ref, char *read, int start_origin, int start_dest, int len);
 //void applymd(char *ref, char *md);
 void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t *cigar);
+pid_t proc_find(const char* name); 
+int is_daemon_running();
 
 #endif

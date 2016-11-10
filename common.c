@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdarg.h>
-#include <string.h>
 #include <ctype.h>
 
 /* htslib headers */
@@ -22,6 +19,7 @@ void init_params( parameters** params)
 	( *params)->bam_file = NULL;
 	( *params)->num_fastq_files = 0;
 	( *params)->threads = 1;
+	( *params)->daemon = 0;
 }
 
 void load_chrom_properties(parameters* params)
@@ -366,6 +364,51 @@ void ins_char(char *ref, char *read, int start_origin, int start_dest, int len){
 	//printf("\n");
 }
 
+pid_t proc_find(const char* name) 
+{
+    DIR* dir;
+    struct dirent* ent;
+    char* endptr;
+    char buf[512];
+
+    if (!(dir = opendir("/proc"))) {
+        perror("can't open /proc");
+        return -1;
+    }
+
+    while((ent = readdir(dir)) != NULL) {
+        /* if endptr is not a null character, the directory is not
+         * entirely numeric, so ignore it */
+        long lpid = strtol(ent->d_name, &endptr, 10);
+        if (*endptr != '\0') {
+            continue;
+        }
+
+        /* try to open the cmdline file */
+        snprintf(buf, sizeof(buf), "/proc/%ld/cmdline", lpid);
+        FILE* fp = fopen(buf, "r");
+
+        if (fp) {
+            if (fgets(buf, sizeof(buf), fp) != NULL) {
+                /* check the first token in the file, the program name */
+                char* first = strtok(buf, " ");
+                if (!strcmp(first, name)) {
+                    fclose(fp);
+                    closedir(dir);
+                    return (pid_t)lpid;
+                }
+            }
+            fclose(fp);
+        }
+
+    }
+
+    closedir(dir);
+    return -1;
+}
+
+
+
 void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t* _cigar){
 	int i,j,k;
 	char buf[1000];
@@ -481,5 +524,22 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 		}
 		i++;
 		//printf("lnow	%d.	md[i]=%c\n", i, md[i]);
+	}
+}
+
+int is_daemon_running(){
+	int fd = open("/tmp/.verifybam_daemon", 
+	    O_CREAT | //create the file if it's not present.
+	    O_WRONLY,//only need write access for the internal locking semantics.
+	    S_IRUSR | S_IWUSR); //permissions on the file, 600 here.
+
+	if (fd == -1) {
+	    return 1;
+	}
+	else if(flock(fd, LOCK_EX|LOCK_NB) == -1){
+		return 1;
+	}
+	else{
+		return 0;
 	}
 }

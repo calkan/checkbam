@@ -122,9 +122,9 @@ void *read_thread(void *_args)
 
 	job_t* job;
 
-  thread_args_t* args = (thread_args_t*) _args;
-  while(_stop_flag==0){
-    pthread_mutex_lock(&(args->buffer.mutex));
+	thread_args_t* args = (thread_args_t*) _args;
+	while(_stop_flag==0){
+		pthread_mutex_lock(&(args->buffer.mutex));
 
 		if(args->buffer.queue.len == 0){
 			pthread_cond_wait(&(args->buffer.can_consume), &(args->buffer.mutex));
@@ -133,7 +133,7 @@ void *read_thread(void *_args)
 		pop( &(args->buffer.queue), &job);
 
 		pthread_cond_signal(&(args->buffer.can_produce));
-    pthread_mutex_unlock(&(args->buffer.mutex));
+		pthread_mutex_unlock(&(args->buffer.mutex));
 
 		if(job->job_type == END_SIGNAL){
 			break;
@@ -270,18 +270,20 @@ void *read_thread(void *_args)
 					fprintf(stdout, "Thread %d: number of processed reads is %d\nCurrent buffer size is %d\n", args->thread_id, args->aligned_read_count, args->buffer.queue.len);
 					fflush(stdout);
 				}*/
-	    }
+			}
 		}
-		if(job!=NULL)
+		
+		if(job!=NULL){
 			free(job);
+		}
 	}
-  pthread_exit(NULL);
+	pthread_exit(NULL);
 }
 
 void send_job(job_t* job, thread_args_t* args){
 	pthread_mutex_lock(&(args->buffer.mutex));
 	if(args->buffer.queue.len == BUFFER_SIZE) {
-			pthread_cond_wait(&(args->buffer.can_produce), &(args->buffer.mutex));
+		pthread_cond_wait(&(args->buffer.can_produce), &(args->buffer.mutex));
 	}
 
 	push( &(args->buffer.queue), job);
@@ -325,24 +327,24 @@ int read_alignment( bam_info* in_bam, parameters *params)
 	}
 
 	for(t=0; t<params->threads; t++){
-     args[t] = malloc(sizeof(thread_args_t));
-     args[t]->thread_id = t;
-		 for(i=0; i<MD5_BLOCK_SIZE; i++){
-			 args[t]->hash_bam[i] = 0;
-		 }
-		 args[t]->aligned_read_count = 0;
-		 args[t]->params = params;
-		 init_queue( &(args[t]->buffer.queue));
-		 pthread_mutex_init(&(args[t]->buffer.mutex), NULL);
-		 pthread_cond_init(&(args[t]->buffer.can_produce), NULL);
-		 pthread_cond_init(&(args[t]->buffer.can_consume), NULL);
+		args[t] = malloc(sizeof(thread_args_t));
+		args[t]->thread_id = t;
+		for(i=0; i<MD5_BLOCK_SIZE; i++){
+			args[t]->hash_bam[i] = 0;
+		}
+		args[t]->aligned_read_count = 0;
+		args[t]->params = params;
+		init_queue( &(args[t]->buffer.queue));
+		pthread_mutex_init(&(args[t]->buffer.mutex), NULL);
+		pthread_cond_init(&(args[t]->buffer.can_produce), NULL);
+		pthread_cond_init(&(args[t]->buffer.can_consume), NULL);
 
-     int rc = pthread_create(&threads[t], NULL, read_thread, (void *)args[t]);
-     if (rc){
-        printf("ERROR; return code from pthread_create() is %d\n", rc);
-        exit(-1);
-     }
-  }
+		int rc = pthread_create(&threads[t], NULL, read_thread, (void *)args[t]);
+		if (rc){
+			printf("ERROR; return code from pthread_create() is %d\n", rc);
+			exit(-1);
+		}
+	}
 
 	struct timespec start, finish;
 	struct timespec io_start, io_finish;
@@ -382,13 +384,13 @@ int read_alignment( bam_info* in_bam, parameters *params)
 		new_job->job_type = END_SIGNAL;
 		send_job(new_job, args[t]);
 
-    pthread_join(threads[t], &status);
+		pthread_join(threads[t], &status);
 
 		aligned_read_count += args[t]->aligned_read_count;
 		for( k = 0; k < MD5_BLOCK_SIZE; k++){
 			hash_bam[k] += args[t]->hash_bam[k];
 		}
-  }
+	}
 
 	clock_gettime(CLOCK_MONOTONIC, &finish);
 	elapsed = (finish.tv_sec - start.tv_sec);

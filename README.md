@@ -31,6 +31,15 @@ This command should create the necessary executable 'verifybam'.
 
 To install verifybam.
 
+### Troubleshooting
+
+#### zlib.h no such file or directory
+
+Some linux distributions are not shipped with zlib header files. For debian systems such as Ubuntu, Linux Mint, you can download ```libz-dev``` package from package manager.
+```
+sudo apt-get install libz-dev
+```
+
 ## Usage
 
 Available options can be obtained by running verifybam without any parameters.
