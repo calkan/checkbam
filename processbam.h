@@ -70,7 +70,7 @@ typedef struct _thread_data {
 } thread_args_t;
 
 
-void load_bam( bam_info* in_bam, char* path);
+void load_bam( bam_info* in_bam, char* path, int limit);
 int read_alignment( bam_info* in_bam, parameters *params);
 int readcmp(char* read1, char* read2);
 

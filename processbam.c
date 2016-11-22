@@ -51,7 +51,7 @@ void pop(Queue* queue, job_t** job){
 		free(temp);
 }
 
-void load_bam( bam_info* in_bam, char* path)
+void load_bam( bam_info* in_bam, char* path, int limit)
 {
 	/* Variables */
 	htsFile* bam_file;
@@ -71,6 +71,8 @@ void load_bam( bam_info* in_bam, char* path)
 	}
 	/* Read in BAM header information */
 	bam_header = bam_hdr_read( ( bam_file->fp).bgzf);
+
+	printf("Bam header: %d %d\n", bam_header->n_targets, bam_header->target_len);
 
 	get_sample_name( in_bam, bam_header->text);
 	in_bam->bam_file = bam_file;
@@ -272,7 +274,7 @@ void *read_thread(void *_args)
 				}*/
 			}
 		}
-		
+
 		if(job!=NULL){
 			free(job);
 		}

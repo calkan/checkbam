@@ -50,6 +50,7 @@ typedef struct _params
 	char **chrom_seq; /* chromosomes */
 	faidx_t* ref_fai;
 	short daemon; /* running mode of verifybam */
+	short limit; /* Bottom limit for aligned read count in percentage. */
 
 	char* fastq_list; /* File address that holds absolute path of fastq files */
 	char* fastq_files[MAX_FASTQS]; /* List of fastq files to compute hash. */
@@ -99,7 +100,7 @@ void del_char(char *ref, int start, int len);
 void ins_char(char *ref, char *read, int start_origin, int start_dest, int len);
 //void applymd(char *ref, char *md);
 void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t *cigar);
-pid_t proc_find(const char* name); 
+pid_t proc_find(const char* name);
 int is_daemon_running();
 
 #endif

@@ -1,13 +1,15 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "verifybam.h"
 #include "cmdline.h"
 
 int parse_command_line( int argc, char** argv, parameters* params, int exe)
 {
-	int index;
+	int index,i;
+	short flag;
 	int o;
 	static struct option long_options[] =
 	{
@@ -16,6 +18,7 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 		{"fastq"	, required_argument,	0, 'q'},
 		{"fq-list"	, required_argument,	0, 'l'},
 		{"output"	, required_argument,	0, 'o'},
+		{"limit"	, required_argument,	0, 'c'},
 		{"help"		, no_argument,			0, 'h'},
 		{"daemon"	, no_argument,			0, 'd'},
 		{"threads"	, required_argument,	0, 't'},
@@ -29,7 +32,7 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 		return 0;
 	}
 
-	while( ( o = getopt_long( argc, argv, "hvd:i:f:t:o:q:l:", long_options, &index)) != -1)
+	while( ( o = getopt_long( argc, argv, "hvd:i:f:t:o:q:l:c:", long_options, &index)) != -1)
 	{
 		switch(o)
 		{
@@ -68,6 +71,21 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 				params->daemon = 1;
 			break;
 
+			case 'c':
+				flag = 1;
+				for(i=0; i<strlen(optarg); i++){
+					flag &= isdigit(optarg[i]);
+					if(!flag) break;
+				}
+				if(flag){
+					params->limit = atoi(optarg);
+				}
+				else{
+					fprintf( stderr, "\nLimit argument only accepts integers.\n");
+				}
+				params->limit = atoi(optarg);
+			break;
+
 			case 'v':
 				if(exe == EXE_VERIFYBAM){
 					fprintf( stderr, "\nVERIFYBAM: BAM validity checking tool.\n");
@@ -96,6 +114,12 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 		if( params->ref_genome == NULL)
 		{
 			fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter reference genome file (FASTA) using the --ref option.\n");
+			return EXIT_PARAM_ERROR;
+		}
+	}
+	else if(exe == EXE_VERIFYBAM){
+		if(!(params->limit > 0 && params->limit <= 100)){
+			fprintf( stderr, "Limit must be in (0,100] range.\n");
 			return EXIT_PARAM_ERROR;
 		}
 	}

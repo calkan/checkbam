@@ -63,12 +63,12 @@ int main( int argc, char** argv)
 
 		in_bam = ( bam_info*) malloc( sizeof( bam_info));
 		in_bam->sample_name = NULL;
-		load_bam( in_bam, params->bam_file);
+		load_bam( in_bam, params->bam_file, params->limit);
 
 		/* Run actual verification process */
 		return read_alignment(in_bam, params);
 	}
-	
+
 }
 
 void init_server(parameters **params){
@@ -89,9 +89,9 @@ void init_server(parameters **params){
 	bind(s, (struct sockaddr *)&local, len);
 
 
-	/* The second argument, 5, is the number of incoming connections 
-	   that can be queued before you call accept(), below. 
-	   If there are this many connections waiting to be accepted, 
+	/* The second argument, 5, is the number of incoming connections
+	   that can be queued before you call accept(), below.
+	   If there are this many connections waiting to be accepted,
 	   additional clients will generate the error ECONNREFUSED. */
 	if( listen(s, 5) == -1){
 		exit(EXIT_FAILURE);
@@ -111,16 +111,16 @@ void init_server(parameters **params){
 
 		int filename_len;
 		recv(s2, &filename_len, sizeof(int), 0);
-	
+
 		char buf[filename_len];
-		
+
 		recv(s2, buf, filename_len, 0);
 		set_str(&((*params)->bam_file), buf);
 		printf("Read params %s %d\n", (*params)->bam_file, filename_len);
-		
+
 		in_bam = ( bam_info*) malloc( sizeof( bam_info));
 		in_bam->sample_name = NULL;
-		load_bam( in_bam, (*params)->bam_file);
+		load_bam( in_bam, (*params)->bam_file, (*params)->limit);
 		int result = read_alignment(in_bam, (*params));
 
 		send(s2, &result, sizeof(int), 0);

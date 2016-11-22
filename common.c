@@ -20,6 +20,7 @@ void init_params( parameters** params)
 	( *params)->num_fastq_files = 0;
 	( *params)->threads = 1;
 	( *params)->daemon = 0;
+	( *params)->limit = 90;
 }
 
 void load_chrom_properties(parameters* params)
@@ -32,7 +33,6 @@ void load_chrom_properties(parameters* params)
 
 	sprintf( filename, "%s.fai", (params)->ref_genome);
 	fai_file = safe_fopen( filename, "r");
-
 
 	//count the number of chromosomes by counting the non-empty lines in the .fai file
 	do{
@@ -364,7 +364,7 @@ void ins_char(char *ref, char *read, int start_origin, int start_dest, int len){
 	//printf("\n");
 }
 
-pid_t proc_find(const char* name) 
+pid_t proc_find(const char* name)
 {
     DIR* dir;
     struct dirent* ent;
@@ -528,7 +528,7 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 }
 
 int is_daemon_running(){
-	int fd = open("/tmp/.verifybam_daemon", 
+	int fd = open("/tmp/.verifybam_daemon",
 	    O_CREAT | //create the file if it's not present.
 	    O_WRONLY,//only need write access for the internal locking semantics.
 	    S_IRUSR | S_IWUSR); //permissions on the file, 600 here.
