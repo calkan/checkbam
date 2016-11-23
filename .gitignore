@@ -1,0 +1,14 @@
+# generated files
+*.log
+*.o
+*.a
+*.txt
+
+# test modules 
+md.c
+test.c
+
+# Binaries
+verifybam
+test
+fqhash

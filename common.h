@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/types.h>
@@ -31,8 +32,6 @@
 
 #define MAX_BAMS 256
 #define MAX_FASTQS 1000
-
-#define DAEMON_LOCK "/verifybamdaemonlock"
 
 // Track memory usage
 extern long long memUsage;
@@ -100,7 +99,6 @@ void del_char(char *ref, int start, int len);
 void ins_char(char *ref, char *read, int start_origin, int start_dest, int len);
 //void applymd(char *ref, char *md);
 void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t *cigar);
-pid_t proc_find(const char* name);
-int is_daemon_running();
+char* get_datetime();
 
 #endif

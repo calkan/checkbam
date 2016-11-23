@@ -69,9 +69,9 @@ void print_params( parameters* params)
 {
 	int i;
 
-	printf( "BAM input: %s\n", params->bam_file);
+	fprintf(stdout, "BAM input: %s\n", params->bam_file);
 
-	printf( "ref_genome: %s\n", params->ref_genome);
+	fprintf(stdout, "ref_genome: %s\n", params->ref_genome);
 
 }
 
@@ -527,19 +527,14 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 	}
 }
 
-int is_daemon_running(){
-	int fd = open("/tmp/.verifybam_daemon",
-	    O_CREAT | //create the file if it's not present.
-	    O_WRONLY,//only need write access for the internal locking semantics.
-	    S_IRUSR | S_IWUSR); //permissions on the file, 600 here.
-
-	if (fd == -1) {
-	    return 1;
-	}
-	else if(flock(fd, LOCK_EX|LOCK_NB) == -1){
-		return 1;
-	}
-	else{
-		return 0;
-	}
+char * get_datetime(){
+	time_t     now;
+    struct tm  ts;
+    char * buf = (char*)malloc(sizeof(char)*200);
+    // Get current time
+    time(&now);
+    // Format time, "ddd yyyy-mm-dd hh:mm:ss zzz"
+    ts = *localtime(&now);
+    strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S %Z", &ts);
+    return buf;
 }

@@ -67,12 +67,24 @@ void load_bam( bam_info* in_bam, char* path, int limit)
 
 	if (bam_index == NULL){
 		fprintf(stderr, "BAM index not found.\n");
-		exit (EXIT_COMMON);
+		return;
 	}
 	/* Read in BAM header information */
 	bam_header = bam_hdr_read( ( bam_file->fp).bgzf);
 
-	printf("Bam header: %d %d\n", bam_header->n_targets, bam_header->target_len);
+	int i;
+	float t_mapped=0, t_unmapped=0;
+	for(i=0;i<bam_header->n_targets;i++){
+		uint64_t _m, _u;
+		hts_idx_get_stat(bam_index, i, &_m, &_u);
+		t_mapped += _m;
+		t_unmapped += _u;
+	}
+	
+	if((t_mapped/(t_mapped+t_unmapped)) < ((float)limit/100)){
+		fprintf(stderr, "Mapped read percentage is under the limit: %0.f\t%0.f\t%.2f\n", t_mapped, t_unmapped, (t_mapped/(t_mapped+t_unmapped))*100);
+		return;
+	}
 
 	get_sample_name( in_bam, bam_header->text);
 	in_bam->bam_file = bam_file;
@@ -320,12 +332,12 @@ int read_alignment( bam_info* in_bam, parameters *params)
 
 	if (bam_index == NULL){
 		fprintf(stderr, "BAM index not found.\n");
-		exit (EXIT_COMMON);
+		return(EXIT_COMMON);
 	}
 
 	if (bam_header == NULL){
 		fprintf(stderr, "BAM header not found.\n");
-		exit (EXIT_COMMON);
+		return(EXIT_COMMON);
 	}
 
 	for(t=0; t<params->threads; t++){
@@ -343,8 +355,8 @@ int read_alignment( bam_info* in_bam, parameters *params)
 
 		int rc = pthread_create(&threads[t], NULL, read_thread, (void *)args[t]);
 		if (rc){
-			printf("ERROR; return code from pthread_create() is %d\n", rc);
-			exit(-1);
+			fprintf(stderr, "ERROR; return code from pthread_create() is %d\n", rc);
+			return(-1);
 		}
 	}
 
@@ -376,9 +388,6 @@ int read_alignment( bam_info* in_bam, parameters *params)
 	}
 
 	BYTE hash_bam[MD5_BLOCK_SIZE] = {0x0};
-	int hash_result = 1;
-	int hash_result_serial = 1;
-	int hash_result_comp = 1;
 	void* status;
 
 	for(t=0; t<params->threads; t++){
@@ -400,18 +409,19 @@ int read_alignment( bam_info* in_bam, parameters *params)
 
 	fprintf(stdout, "\nAll reads are matched.\nTotal aligned read count is %d <> %d\n", aligned_read_count, j);
 	fprintf(stdout, "It took %f seconds to finish\n", elapsed);
+
+	FILE* outstream = stdout;
+	if(params->output_file != NULL){
+		outstream = fopen(params->output_file, "w");
+	}
+
 	fprintf(stdout, "Bamhash:\n");
 	for( k = 0; k < MD5_BLOCK_SIZE; k++){
 		fprintf(stdout, "%x", hash_bam[k]);
 	}
 	fprintf(stdout, "\n");
 
-	if(hash_result){
-		return EXIT_SUCCESS;
-	}
-	else{
-		return EXIT_FAILURE;
-	}
+	return EXIT_SUCCESS;
 }
 
 

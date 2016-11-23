@@ -20,8 +20,12 @@
 #include "processbam.h"
 
 #define SOCK_PATH "verifybam.socket"
+#define DAEMON_LOCK "/tmp/.verifybamdaemonlock"
+
+int is_daemon_running();
 
 void init_server(parameters **params);
 void init_client(parameters *params);
 
+void switch_stdio(FILE * stream, const char * file_path);
 #endif
