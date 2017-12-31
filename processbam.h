@@ -69,9 +69,14 @@ typedef struct _thread_data {
 	 parameters *params;
 } thread_args_t;
 
+typedef struct _processbam_result {
+	int code;
+	char* hash;
+} verifybam_result_t;
+
 
 void load_bam( bam_info* in_bam, char* path, int limit);
-int read_alignment( bam_info* in_bam, parameters *params);
+verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params);
 int readcmp(char* read1, char* read2);
 
 /* BAM Utility functions */
@@ -80,5 +85,6 @@ void get_sample_name( bam_info* in_bam, char* header_text);
 void init_queue(Queue* queue);
 void push(Queue* queue, job_t* job);
 void pop(Queue* queue, job_t** job);
+verifybam_result_t* init_verifybam_result();
 
 #endif

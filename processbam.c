@@ -306,7 +306,7 @@ void send_job(job_t* job, thread_args_t* args){
 	pthread_mutex_unlock(&(args->buffer.mutex));
 }
 
-int read_alignment( bam_info* in_bam, parameters *params)
+verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 {
 	hts_idx_t* bam_index;
 	bam_hdr_t* bam_header;
@@ -316,6 +316,7 @@ int read_alignment( bam_info* in_bam, parameters *params)
 	int aligned_read_count = 0;
 	pthread_t threads[params->threads];
 	thread_args_t* args[params->threads];
+	verifybam_result_t* result = init_verifybam_result();
 
 	MD5_CTX ctx;
 	BYTE buf[MD5_BLOCK_SIZE];
@@ -332,12 +333,14 @@ int read_alignment( bam_info* in_bam, parameters *params)
 
 	if (bam_index == NULL){
 		fprintf(stderr, "BAM index not found.\n");
-		return(EXIT_COMMON);
+		result->code = EXIT_COMMON;
+		return(result);
 	}
 
 	if (bam_header == NULL){
 		fprintf(stderr, "BAM header not found.\n");
-		return(EXIT_COMMON);
+		result->code = EXIT_COMMON;
+		return(result);
 	}
 
 	for(t=0; t<params->threads; t++){
@@ -356,7 +359,8 @@ int read_alignment( bam_info* in_bam, parameters *params)
 		int rc = pthread_create(&threads[t], NULL, read_thread, (void *)args[t]);
 		if (rc){
 			fprintf(stderr, "ERROR; return code from pthread_create() is %d\n", rc);
-			return(-1);
+			result->code = -1;
+			return(result);
 		}
 	}
 
@@ -410,18 +414,12 @@ int read_alignment( bam_info* in_bam, parameters *params)
 	fprintf(stdout, "\nAll reads are matched.\nTotal aligned read count is %d <> %d\n", aligned_read_count, j);
 	fprintf(stdout, "It took %f seconds to finish\n", elapsed);
 
-	FILE* outstream = stdout;
-	if(params->output_file != NULL){
-		outstream = fopen(params->output_file, "w");
-	}
-
-	fprintf(stdout, "Bamhash:\n");
 	for( k = 0; k < MD5_BLOCK_SIZE; k++){
-		fprintf(stdout, "%x", hash_bam[k]);
+		sprintf(result->hash + strlen(result->hash), "%x", hash_bam[k]);
 	}
-	fprintf(stdout, "\n");
 
-	return EXIT_SUCCESS;
+	result->code = EXIT_SUCCESS;
+	return result;
 }
 
 
@@ -472,4 +470,12 @@ int readcmp(char* read1, char* read2){
 		}
 	}
 	return 0;
+}
+
+verifybam_result_t* init_verifybam_result() {
+	verifybam_result_t* result = malloc(sizeof(verifybam_result_t));
+	result->code = -1;
+	result->hash = malloc(sizeof(char)*200);
+	result->hash[0] = '\0';
+	return result;
 }

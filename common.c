@@ -93,7 +93,7 @@ FILE* safe_fopen( char* path, char* mode)
 	file = fopen( path, mode);
 	if( !file)
 	{
-		sprintf( err, "[TARDIS INPUT ERROR] Unable to open file %s in %s mode.", path, mode[0]=='w' ? "write" : "read");
+		sprintf( err, "[INPUT ERROR] Unable to open file %s in %s mode.", path, mode[0]=='w' ? "write" : "read");
 		print_error( err);
 
 	}
@@ -109,7 +109,7 @@ gzFile safe_fopen_gz( char* path, char* mode)
 	file = gzopen( path, mode);
 	if( !file)
 	{
-		sprintf( err, "[TARDIS INPUT ERROR] Unable to open file %s in %s mode.", path, mode[0]=='w' ? "write" : "read");
+		sprintf( err, "[INPUT ERROR] Unable to open file %s in %s mode.", path, mode[0]=='w' ? "write" : "read");
 		print_error( err);
 	}
 	return file;
@@ -123,7 +123,7 @@ htsFile* safe_hts_open( char* path, char* mode)
 	bam_file = hts_open( path, mode);
 	if( !bam_file)
 	{
-		sprintf( err, "[TARDIS INPUT ERROR] Unable to open file %s in %s mode.", path, mode[0]=='w' ? "write" : "read");
+		sprintf( err, "[INPUT ERROR] Unable to open file %s in %s mode.", path, mode[0]=='w' ? "write" : "read");
 		print_error( err);
 	}
 

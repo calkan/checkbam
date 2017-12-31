@@ -34,6 +34,7 @@ int main( int argc, char** argv)
 	}
 
 	if(params->daemon){
+		// Daemon mode activated. Either start the daemon or send a task to daemon
 		if(is_daemon_running()){
 			// A progress is already running. Send request to there.
 			fprintf(stdout, "verifybam server is already runnning. Initialized in client mode.\n");
@@ -58,6 +59,7 @@ int main( int argc, char** argv)
 		exit(EXIT_SUCCESS);
 	}
 	else{
+		// Load reference genome into memory
 		params->ref_fai = fai_load(params->ref_genome);
 
 		load_chrom_properties(params);
@@ -67,14 +69,15 @@ int main( int argc, char** argv)
 		load_bam( in_bam, params->bam_file, params->limit);
 
 		/* Run actual verification process */
-		int result = -1;
+		verifybam_result_t* result;
 		FILE* outstream = stdout;
 		if(params->output_file != NULL){
 			outstream = fopen(params->output_file, "w");
 		}
 		result = read_alignment(in_bam, params);
 
-		fprintf(outstream, "%d\n", result);
+		fprintf(outstream, "%d\n", result->code);
+		fprintf(outstream, "%s\n", result->hash);
 		return EXIT_SUCCESS;
 	}
 
@@ -143,11 +146,13 @@ void init_server(parameters **params){
 		in_bam = ( bam_info*) malloc( sizeof( bam_info));
 		in_bam->sample_name = NULL;
 		load_bam( in_bam, (*params)->bam_file, (*params)->limit);
-		int result = read_alignment(in_bam, (*params));
+		verifybam_result_t* result = read_alignment(in_bam, (*params));
 
-		send(s2, &result, sizeof(int), 0);
+		send(s2, &(result->code), sizeof(int), 0);
+		send(s2, &(result->hash), sizeof(char)*200, 0);
 
 		free(in_bam);
+		free(result);
 	}
 }
 
@@ -181,15 +186,17 @@ void init_client(parameters* params){
 		exit(1);
 	}
 
-	int result = -1;
-	recv(s, &result, sizeof(int), 0);
+	verifybam_result_t* result = init_verifybam_result();
+	recv(s, &(result->code), sizeof(int), 0);
+	recv(s, &(result->hash), sizeof(char)*200, 0);
 
 	FILE* outstream = stdout;
 	if(params->output_file != NULL){
 		outstream = fopen(params->output_file, "w");
 	}
 
-	fprintf(outstream, "%d\n", result);
+	fprintf(outstream, "%d\n", result->code);
+	fprintf(outstream, "%s\n", result->hash);
 
 	close(s);
 }
