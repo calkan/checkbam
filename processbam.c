@@ -58,7 +58,7 @@ void load_bam( bam_info* in_bam, char* path, int limit)
 	bam_hdr_t* bam_header;
 	hts_idx_t* bam_index;
 
-	fprintf( stderr, "Processing BAM file %s.\n", path);
+	fprintf( stderr, "Processing BAM file %s\n", path);
 
 	/* Open the BAM file for reading. htslib automatically detects the format
 		of the file, so appending "b" after "r" in mode is redundant. */

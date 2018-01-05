@@ -19,7 +19,7 @@
 #include "cmdline.h"
 #include "processbam.h"
 
-#define SOCK_PATH "verifybam.socket"
+#define SOCK_PATH "/tmp/verifybam.socket"
 #define DAEMON_LOCK "/tmp/.verifybamdaemonlock"
 
 int is_daemon_running();

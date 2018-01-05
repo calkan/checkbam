@@ -19,9 +19,9 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 		{"fq-list"	, required_argument,	0, 'l'},
 		{"output"	, required_argument,	0, 'o'},
 		{"limit"	, required_argument,	0, 'c'},
+		{"threads"	, required_argument,	0, 't'},
 		{"help"		, no_argument,			0, 'h'},
 		{"daemon"	, no_argument,			0, 'd'},
-		{"threads"	, required_argument,	0, 't'},
 		{"version"	, no_argument,			0, 'v'},
 		{0			, 0, 					0, 0}
 	};
@@ -168,9 +168,11 @@ void print_help( int exe)
 	if(exe == EXE_VERIFYBAM){
 		fprintf( stdout, "\nVERIFYBAM: BAM validity checking tool.\n");
 		fprintf( stdout, "Version %s\n\tLast update: %s, build date: %s\n\n", VERSION, UPDATE, BUILD_DATE);
-		fprintf( stdout, "\t--input [BAM file]   : Input file in sorted and indexed BAM format.\n");
-		fprintf( stdout, "\t--ref   [reference]  : Reference genome in FASTA format.\n");
-		fprintf( stdout, "\t--fastq [Fastq file] : A fastq file that contains original reads from input BAM file. Can be given multiple times.\n");
+		fprintf( stdout, "\t--input  [BAM file]  : Input file in sorted and indexed BAM format.\n");
+		fprintf( stdout, "\t--ref    [reference] : Reference genome in FASTA format.\n");
+		fprintf( stdout, "\t--output [File]      : Write result code and BamHash to an output file.\n");
+		fprintf( stdout, "\t--threads            : Number of threads to run.\n");
+		fprintf( stdout, "\t--daemon             : Start or interact with daemon mode.\n");
 		fprintf( stdout, "\t--version            : Print version and exit.\n");
 		fprintf( stdout, "\t--help               : Print this help screen and exit.\n\n");
 	}

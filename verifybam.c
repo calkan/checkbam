@@ -114,8 +114,8 @@ void init_server(parameters **params){
 	fprintf(stdout, "Started verifybam\n");
 
 	/* Redirect STDIO to a log file*/
-	switch_stdio(stdout, "out_verifybam.log");
-	switch_stdio(stderr, "err_verifybam.log");
+	switch_stdio(stdout, "/tmp/out_verifybam.log");
+	switch_stdio(stderr, "/tmp/err_verifybam.log");
 
 	daemon(0,1);
 
@@ -149,7 +149,9 @@ void init_server(parameters **params){
 		verifybam_result_t* result = read_alignment(in_bam, (*params));
 
 		send(s2, &(result->code), sizeof(int), 0);
-		send(s2, &(result->hash), sizeof(char)*200, 0);
+		len = strlen(result->hash);
+		send(s2, &len, sizeof(int), 0);
+		send(s2, result->hash, sizeof(char)*len, 0);
 
 		free(in_bam);
 		free(result);
@@ -188,7 +190,12 @@ void init_client(parameters* params){
 
 	verifybam_result_t* result = init_verifybam_result();
 	recv(s, &(result->code), sizeof(int), 0);
-	recv(s, &(result->hash), sizeof(char)*200, 0);
+	recv(s, &(len), sizeof(int), 0);
+	char buf[len];
+	recv(s, buf, len, 0);
+	set_str(&(result->hash), buf);
+
+	printf("%s\n", result->hash);
 
 	FILE* outstream = stdout;
 	if(params->output_file != NULL){
