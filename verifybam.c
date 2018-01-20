@@ -137,9 +137,9 @@ void init_server(parameters **params){
 		int filename_len;
 		recv(s2, &filename_len, sizeof(int), 0);
 
-		char buf[filename_len];
+		char buf[filename_len+1];
 
-		recv(s2, buf, filename_len, 0);
+		recv(s2, buf, filename_len, 0); buf[filename_len] = '\0';
 		set_str(&((*params)->bam_file), buf);
 		fprintf(stdout, "Read params %s %d\n", (*params)->bam_file, filename_len);
 
@@ -191,8 +191,8 @@ void init_client(parameters* params){
 	verifybam_result_t* result = init_verifybam_result();
 	recv(s, &(result->code), sizeof(int), 0);
 	recv(s, &(len), sizeof(int), 0);
-	char buf[len];
-	recv(s, buf, len, 0);
+	char buf[len+1];
+	recv(s, buf, len, 0); buf[len] = '\0';
 	set_str(&(result->hash), buf);
 
 	printf("%s\n", result->hash);
