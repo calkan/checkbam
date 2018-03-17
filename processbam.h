@@ -10,7 +10,6 @@
 #include <zlib.h>
 #include <pthread.h>
 
-#include "md5.h"
 #include "common.h"
 KSEQ_INIT(gzFile, gzread)
 
@@ -58,15 +57,15 @@ typedef struct _buffer{
 	Queue queue;
 	pthread_mutex_t mutex;
 	pthread_cond_t can_produce;
-  pthread_cond_t can_consume;
+	pthread_cond_t can_consume;
 } buffer_t;
 
 typedef struct _thread_data {
-   int thread_id;
-   buffer_t buffer;
-	 BYTE hash_bam[MD5_BLOCK_SIZE];
-	 int aligned_read_count;
-	 parameters *params;
+	int thread_id;
+	buffer_t buffer;
+	BYTE *hash_bam;
+	int aligned_read_count;
+	parameters *params;
 } thread_args_t;
 
 typedef struct _processbam_result {
@@ -74,10 +73,12 @@ typedef struct _processbam_result {
 	char* hash;
 } verifybam_result_t;
 
-
-void load_bam( bam_info* in_bam, char* path, int limit);
-verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params);
-int readcmp(char* read1, char* read2);
+void destroy_job(job_t* );
+void destroy_thread_args(thread_args_t*);
+void destroy_bam_info(bam_info*);
+int load_bam( bam_info* , char* , int , int);
+verifybam_result_t* read_alignment( bam_info*, parameters*);
+int readcmp(char* , char* );
 
 /* BAM Utility functions */
 void get_sample_name( bam_info* in_bam, char* header_text);

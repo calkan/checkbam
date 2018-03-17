@@ -22,7 +22,7 @@
 #define SOCK_PATH "/tmp/verifybam.socket"
 #define DAEMON_LOCK "/tmp/.verifybamdaemonlock"
 
-int is_daemon_running();
+int is_server_running();
 
 void init_server(parameters **params);
 void init_client(parameters *params);

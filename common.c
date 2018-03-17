@@ -20,6 +20,8 @@ void init_params( parameters** params)
 	( *params)->num_fastq_files = 0;
 	( *params)->threads = 1;
 	( *params)->daemon = 0;
+	( *params)->server = 0;
+	( *params)->samMode = 0;
 	( *params)->limit = 90;
 }
 
@@ -68,19 +70,16 @@ void load_chrom_properties(parameters* params)
 void print_params( parameters* params)
 {
 	int i;
-
 	fprintf(stdout, "BAM input: %s\n", params->bam_file);
-
 	fprintf(stdout, "ref_genome: %s\n", params->ref_genome);
-
 }
 
 void print_error( char* msg)
 {
-	/* print error message and exit */
+	/* print error message */
 	fprintf( stderr, "\n%s\n", msg);
 	fprintf( stderr, "Invoke parameter -h for help.\n");
-	exit( EXIT_COMMON);
+	//exit( EXIT_COMMON);
 }
 
 
@@ -128,14 +127,6 @@ htsFile* safe_hts_open( char* path, char* mode)
 	}
 
 	return bam_file;
-}
-
-int is_proper( int flag)
-{
-        if ( (flag & BAM_FPAIRED) != 0 && (flag & BAM_FSECONDARY) == 0 && (flag & BAM_FSUPPLEMENTARY) == 0 && (flag & BAM_FDUP) == 0 && (flag & BAM_FQCFAIL) == 0)
-	         return 1;
-
-	return 0;
 }
 
 int is_concordant( bam1_core_t bam_alignment_core, int min, int max)
@@ -407,9 +398,32 @@ pid_t proc_find(const char* name)
     return -1;
 }
 
+void init_sha256_block(BYTE** block) {
+	int i;
+	/*if( *block != NULL)
+	{
+		free( ( *block));
+	}*/
 
+	(*block) = (BYTE*) malloc(sizeof(BYTE) * SHA256_DIGEST_LENGTH);
+
+	for(i = 0; i<SHA256_DIGEST_LENGTH; i++) {
+		(*block)[i] = 0x0;
+	}
+}
+
+void sha256_hash(char * str, BYTE **ongoing)
+{
+	BYTE hash[SHA256_DIGEST_LENGTH];
+	sha256(str, strlen(str), hash);
+	int k;
+	for( k = 0; k < SHA256_DIGEST_LENGTH; k++){
+		(*ongoing)[k] += hash[k];
+	}
+}
 
 void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t* _cigar){
+	/* Applies given CIGAR and MD operations on the read to match reference */
 	int i,j,k;
 	char buf[1000];
 	int oplen;
@@ -455,16 +469,10 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 	}
 	// Soft clipping, edit read
 	for(i=soft_clips_len - 1; i>=0; i--){
-		//printf("Deleting read from %d for %d\n", soft_clips[i].start, soft_clips[i].length);
 		del_char(read, soft_clips[i].start, soft_clips[i].length);
 		int ref_len = strlen(ref);
-		//printf("Deleting ref from %d for %d\n", ref_len - (soft_clips[i].length), soft_clips[i].length);
 		del_char(ref, ref_len - (soft_clips[i].length), soft_clips[i].length);
 	}
-
-	//char index[100] = "'         '         '         '         '         '         '         '         '         '         ";
-	//index[100] = '\0';
-	//printf("\ndel\n%s\n%s\n%s\n", index, read, ref);
 
 	j=0;
 	buf[0]=0;
@@ -483,7 +491,6 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 			j=0;
 			oplen=atoi(buf);
 			refptr+=oplen;
-			//printf("buf: %s : %d - %d\n", buf, oplen, refptr);
 		}
 
 		if (md[i]=='^'){ // del. skip
@@ -491,12 +498,8 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 			for (k=0; k<n_cigar; k++){
 				if (cigar[k] == 'D'){
 					thisdel++;
-					//printf("thisdel %d	delcnt %d\n", thisdel, delcnt);
 					if (thisdel == delcnt){
-
-						//printf("md i %d ", i);
 						i+=cigarlen[k];
-						//printf("now	%d.	md[i]=%c\n", i, md[i]);
 						delcnt++; break;
 					}
 				}
@@ -515,26 +518,21 @@ void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t
 				}
 
 			}
-			//printf("refptr added %d\n", inserted);
-			//printf("changing %d:%c %d:%c\n", refptr, read[refptr], (i+1), md[i]);
 			read[refptr+inserted]=md[i];
 			refptr++;
-			//printf("postedit refptr %d\n", refptr);
-			//printf("\npostedit\n%s\n%s\n%s\n", index, read, ref);
 		}
 		i++;
-		//printf("lnow	%d.	md[i]=%c\n", i, md[i]);
 	}
 }
 
 char * get_datetime(){
 	time_t     now;
-    struct tm  ts;
-    char * buf = (char*)malloc(sizeof(char)*200);
+    struct tm*  ts;
+    void * buf = getMem(200);
     // Get current time
     time(&now);
-    // Format time, "ddd yyyy-mm-dd hh:mm:ss zzz"
-    ts = *localtime(&now);
-    strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S %Z", &ts);
+    ts = localtime(&now);
+
+    strftime(buf, 200, "%Y-%m-%d %H:%M:%S %Z", ts);
     return buf;
 }

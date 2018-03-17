@@ -16,6 +16,10 @@
 #include <sys/file.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <openssl/sha.h>
+#include "sha2.h"
+
+#define BYTE unsigned char
 
 /* Exit Codes */
 #define EXIT_SUCCESS 0
@@ -48,8 +52,10 @@ typedef struct _params
 	char** chrom_names; /* names of the chromosomes */
 	char **chrom_seq; /* chromosomes */
 	faidx_t* ref_fai;
-	short daemon; /* running mode of verifybam */
+	short daemon; /* activate background daemon mode */
+	short server; /* activate server mode */
 	short limit; /* Bottom limit for aligned read count in percentage. */
+	short samMode; /* Input is in SAM format */
 
 	char* fastq_list; /* File address that holds absolute path of fastq files */
 	char* fastq_files[MAX_FASTQS]; /* List of fastq files to compute hash. */
@@ -75,7 +81,6 @@ gzFile safe_fopen_gz( char* path, char* mode);
 htsFile* safe_hts_open( char* path, char* mode);
 
 /* General BAM processing functions */
-int is_proper( int flag);
 int is_concordant( bam1_core_t bam_alignment_core, int min, int max);
 char base_as_char( int base_as_int);
 int char_as_base( char base);
@@ -98,6 +103,10 @@ double getMemUsage();
 void del_char(char *ref, int start, int len);
 void ins_char(char *ref, char *read, int start_origin, int start_dest, int len);
 //void applymd(char *ref, char *md);
+
+void init_sha256_block(BYTE**);
+void sha256_hash(char*, BYTE**);
+
 void apply_cigar_md(char *ref, char *read, char *md, int n_cigar, const uint32_t *cigar);
 char* get_datetime();
 

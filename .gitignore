@@ -12,3 +12,5 @@ test.c
 verifybam
 test
 fqhash
+
+.vscode/

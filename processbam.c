@@ -4,7 +4,6 @@
 #include <math.h>
 #include <inttypes.h>
 
-/* tardis headers */
 #include "processbam.h"
 
 void init_queue(Queue* queue){
@@ -47,11 +46,39 @@ void pop(Queue* queue, job_t** job){
 	queue->head = queue->head->next;
 	queue->len--;
 
-	if(temp!=NULL)
+	if(temp!=NULL) {
 		free(temp);
+	}
 }
 
-void load_bam( bam_info* in_bam, char* path, int limit)
+void destroy_job(job_t* job) {
+	if(job->job_type == READ_SAMPLE && job->data != NULL) {
+		bam_destroy1((bam1_t*)(job->data));
+	}
+}
+
+void destroy_thread_args(thread_args_t* args) {
+	if(args != NULL) {
+		if(args->hash_bam != NULL) {
+			free(args->hash_bam);
+		}
+		free(args);
+	}
+}
+
+void destroy_bam_info(bam_info* in_bam) {
+	if(in_bam != NULL) {
+		if(in_bam->bam_header != NULL)
+			bam_hdr_destroy(in_bam->bam_header);
+		if(in_bam->bam_index != NULL)
+			hts_idx_destroy(in_bam->bam_index);
+		if(in_bam->bam_file != NULL)
+			hts_close(in_bam->bam_file);
+		free(in_bam);	
+	}
+}
+
+int load_bam( bam_info* in_bam, char* path, int limit, int samMode)
 {
 	/* Variables */
 	htsFile* bam_file;
@@ -63,34 +90,47 @@ void load_bam( bam_info* in_bam, char* path, int limit)
 	/* Open the BAM file for reading. htslib automatically detects the format
 		of the file, so appending "b" after "r" in mode is redundant. */
 	bam_file = safe_hts_open( path, "r");
+	if(!bam_file) {
+		return -1;
+	}
 	bam_index = sam_index_load( bam_file, path);
 
-	if (bam_index == NULL){
-		fprintf(stderr, "BAM index not found.\n");
-		return;
-	}
 	/* Read in BAM header information */
-	bam_header = bam_hdr_read( ( bam_file->fp).bgzf);
-
-	int i;
-	float t_mapped=0, t_unmapped=0;
-	for(i=0;i<bam_header->n_targets;i++){
-		uint64_t _m, _u;
-		hts_idx_get_stat(bam_index, i, &_m, &_u);
-		t_mapped += _m;
-		t_unmapped += _u;
+	if(samMode) {
+		bam_header = sam_hdr_read( bam_file);
 	}
-	
-	if((t_mapped/(t_mapped+t_unmapped)) < ((float)limit/100)){
-		fprintf(stderr, "Mapped read percentage is under the limit: %0.f\t%0.f\t%.2f\n", t_mapped, t_unmapped, (t_mapped/(t_mapped+t_unmapped))*100);
-		return;
+	else{
+		bam_header = bam_hdr_read( ( bam_file->fp).bgzf);
+	}
+
+	if(!bam_header) {
+		return -1;
+	}
+
+	if (bam_index == NULL){
+		fprintf(stderr, "BAM index not found. Limit option will not work!\nSkipping stats.\n");
+	}
+	else {
+		int i;
+		float t_mapped=0, t_unmapped=0;
+		for(i=0;i<bam_header->n_targets;i++){
+			uint64_t _m, _u;
+			hts_idx_get_stat(bam_index, i, &_m, &_u);
+			t_mapped += _m;
+			t_unmapped += _u;
+		}
+		
+		if((t_mapped/(t_mapped+t_unmapped)) < ((float)limit/100)){
+			fprintf(stderr, "Mapped read percentage is under the limit: %0.f\t%0.f\t%.2f\n", t_mapped, t_unmapped, (t_mapped/(t_mapped+t_unmapped))*100);
+			return -1;
+		}
+		in_bam->bam_index = bam_index;
 	}
 
 	get_sample_name( in_bam, bam_header->text);
 	in_bam->bam_file = bam_file;
-	in_bam->bam_index = bam_index;
 	in_bam->bam_header = bam_header;
-
+	return 1;
 }
 
 void *read_thread(void *_args)
@@ -103,10 +143,7 @@ void *read_thread(void *_args)
 	char read[MAX_SEQ];
 	char qual[MAX_SEQ];
 	char read2[MAX_SEQ];
-
-	MD5_CTX ctx;
 	BYTE hash_input_read[MAX_SEQ];
-	BYTE buf[MD5_BLOCK_SIZE];
 
 	int read_len;
 	int ref_len;
@@ -150,6 +187,7 @@ void *read_thread(void *_args)
 		pthread_mutex_unlock(&(args->buffer.mutex));
 
 		if(job->job_type == END_SIGNAL){
+			destroy_job(job);
 			break;
 		}
 		else if(job->job_type == READ_SAMPLE){
@@ -179,9 +217,9 @@ void *read_thread(void *_args)
 				qual[bam_alignment_core.l_qseq] = '\0';
 				qual_to_ascii(qual);
 
-				int seq_len = strlen( sequence);
+				int seq_len = strlen(sequence);
 				for( i = 0; i < seq_len; i++){
-					read[i] = base_as_char( bam_seqi( sequence, i));
+					read[i] = base_as_char(bam_seqi(sequence, i));
 					if(reversed){
 						hash_input_read[(seq_len-1)-i] = complement_char(read[i]);
 					}
@@ -192,13 +230,7 @@ void *read_thread(void *_args)
 				read[i] = '\0';
 				read_len = i;
 
-				md5_init(&ctx);
-				md5_update(&ctx, hash_input_read, read_len);
-				md5_final(&ctx, buf);
-
-				for( i = 0; i < MD5_BLOCK_SIZE; i++){
-					args->hash_bam[i] += buf[i];
-				}
+				sha256_hash(hash_input_read, &(args->hash_bam));
 
 				strcpy(read2, read);
 
@@ -285,10 +317,7 @@ void *read_thread(void *_args)
 					fflush(stdout);
 				}*/
 			}
-		}
-
-		if(job!=NULL){
-			free(job);
+			destroy_job(job);
 		}
 	}
 	pthread_exit(NULL);
@@ -318,10 +347,6 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 	thread_args_t* args[params->threads];
 	verifybam_result_t* result = init_verifybam_result();
 
-	MD5_CTX ctx;
-	BYTE buf[MD5_BLOCK_SIZE];
-	BYTE hash_input_read[MAX_SEQ];
-
 	_stop_flag = 0;
 
 	bam_file = in_bam->bam_file;
@@ -329,12 +354,11 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 	bam_index = in_bam->bam_index;
 
 	bam1_t*	bam_alignment;
-	bam_alignment = bam_init1();
 
 	if (bam_index == NULL){
 		fprintf(stderr, "BAM index not found.\n");
-		result->code = EXIT_COMMON;
-		return(result);
+//		result->code = EXIT_COMMON;
+//		return(result);
 	}
 
 	if (bam_header == NULL){
@@ -344,13 +368,11 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 	}
 
 	for(t=0; t<params->threads; t++){
-		args[t] = malloc(sizeof(thread_args_t));
+		args[t] = (thread_args_t*) malloc(sizeof(thread_args_t));
 		args[t]->thread_id = t;
-		for(i=0; i<MD5_BLOCK_SIZE; i++){
-			args[t]->hash_bam[i] = 0;
-		}
 		args[t]->aligned_read_count = 0;
 		args[t]->params = params;
+		init_sha256_block( &(args[t]->hash_bam));
 		init_queue( &(args[t]->buffer.queue));
 		pthread_mutex_init(&(args[t]->buffer.mutex), NULL);
 		pthread_cond_init(&(args[t]->buffer.can_produce), NULL);
@@ -370,7 +392,13 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	j=0;
-	return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+	bam_alignment = bam_init1();
+	if(params->samMode) {
+		return_value = sam_read1( bam_file, bam_header, bam_alignment);
+	}
+	else{
+		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+	}
 
 	while( return_value != -1 && _stop_flag==0 ){
 
@@ -382,7 +410,28 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 		send_job(new_job, args[index]);
 
 		bam_alignment = bam_init1();
-		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+		if(params->samMode) {
+			return_value = sam_read1( bam_file, bam_header, bam_alignment);
+		}
+		else{
+			return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+		}
+
+		/*if(return_value < 0) {
+			const uint32_t *cigar = bam_get_cigar(bam_alignment);
+			printf("Length of query: %d ncigars: %d\n", bam_alignment->core.l_qseq, bam_alignment->core.n_cigar);
+			printf("CIGAR: ");
+			for(j=0; j<bam_alignment->core.n_cigar; j++) {
+				printf("%c%d ", bam_cigar_opchr(cigar[j]), bam_cigar_oplen(cigar[j]));
+			}
+			printf("\n");
+			char md[MAX_SEQ];
+			strcpy(md, bam_aux_get(bam_alignment, "MD"));
+			printf("MD: %s\n", md);
+			result->code = -1;
+			return(result);
+		}*/
+
 		j++;
 
 		if((j % 500000) == 0){
@@ -391,7 +440,8 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 		}
 	}
 
-	BYTE hash_bam[MD5_BLOCK_SIZE] = {0x0};
+	BYTE *hash_bam;
+	init_sha256_block(&hash_bam);
 	void* status;
 
 	for(t=0; t<params->threads; t++){
@@ -402,9 +452,10 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 		pthread_join(threads[t], &status);
 
 		aligned_read_count += args[t]->aligned_read_count;
-		for( k = 0; k < MD5_BLOCK_SIZE; k++){
+		for( k = 0; k < SHA256_DIGEST_LENGTH; k++){
 			hash_bam[k] += args[t]->hash_bam[k];
 		}
+		destroy_thread_args(args[t]);
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &finish);
@@ -414,10 +465,11 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 	fprintf(stdout, "\nAll reads are matched.\nTotal aligned read count is %d <> %d\n", aligned_read_count, j);
 	fprintf(stdout, "It took %f seconds to finish\n", elapsed);
 
-	for( k = 0; k < MD5_BLOCK_SIZE; k++){
-		sprintf(result->hash + strlen(result->hash), "%x", hash_bam[k]);
+	for( k = 0; k < SHA256_DIGEST_LENGTH; k++){
+		sprintf(result->hash + strlen(result->hash), "%02x", hash_bam[k]);
 	}
 
+	free(hash_bam);
 	result->code = EXIT_SUCCESS;
 	return result;
 }

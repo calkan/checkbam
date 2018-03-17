@@ -21,7 +21,9 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 		{"limit"	, required_argument,	0, 'c'},
 		{"threads"	, required_argument,	0, 't'},
 		{"help"		, no_argument,			0, 'h'},
+		{"server"	, no_argument,			0, 's'},
 		{"daemon"	, no_argument,			0, 'd'},
+		{"sam"		, no_argument,			0, 'S'},
 		{"version"	, no_argument,			0, 'v'},
 		{0			, 0, 					0, 0}
 	};
@@ -32,7 +34,7 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 		return 0;
 	}
 
-	while( ( o = getopt_long( argc, argv, "hvd:i:f:t:o:q:l:c:", long_options, &index)) != -1)
+	while( ( o = getopt_long( argc, argv, "hdv:i:f:t:o:q:l:c:", long_options, &index)) != -1)
 	{
 		switch(o)
 		{
@@ -71,6 +73,14 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 				params->daemon = 1;
 			break;
 
+			case 's':
+				params->server = 1;
+			break;
+
+			case 'S':
+				params->samMode = 1;
+			break;
+
 			case 'c':
 				flag = 1;
 				for(i=0; i<strlen(optarg); i++){
@@ -104,7 +114,7 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 
 	/* TODO: check parameter validity */
 
-	if(exe == EXE_VERIFYBAM && !(params->daemon)){
+	if(exe == EXE_VERIFYBAM && !(params->server)){
 		if( params->bam_file == NULL)
 		{
 			fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter an input BAM file using the --input option.\n");
