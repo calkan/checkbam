@@ -68,12 +68,15 @@ void destroy_thread_args(thread_args_t* args) {
 
 void destroy_bam_info(bam_info* in_bam) {
 	if(in_bam != NULL) {
-		if(in_bam->bam_header != NULL)
+		if(in_bam->bam_header != NULL) {
 			bam_hdr_destroy(in_bam->bam_header);
-		if(in_bam->bam_index != NULL)
+		}
+		if(in_bam->bam_index != NULL) {
 			hts_idx_destroy(in_bam->bam_index);
-		if(in_bam->bam_file != NULL)
+		}
+		if(in_bam->bam_file != NULL) {
 			hts_close(in_bam->bam_file);
+		}
 		free(in_bam);	
 	}
 }
@@ -109,6 +112,7 @@ int load_bam( bam_info* in_bam, char* path, int limit, int samMode)
 
 	if (bam_index == NULL){
 		fprintf(stderr, "BAM index not found. Limit option will not work!\nSkipping stats.\n");
+		in_bam->bam_index = bam_index;
 	}
 	else {
 		int i;
@@ -417,21 +421,6 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 			return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
 		}
 
-		/*if(return_value < 0) {
-			const uint32_t *cigar = bam_get_cigar(bam_alignment);
-			printf("Length of query: %d ncigars: %d\n", bam_alignment->core.l_qseq, bam_alignment->core.n_cigar);
-			printf("CIGAR: ");
-			for(j=0; j<bam_alignment->core.n_cigar; j++) {
-				printf("%c%d ", bam_cigar_opchr(cigar[j]), bam_cigar_oplen(cigar[j]));
-			}
-			printf("\n");
-			char md[MAX_SEQ];
-			strcpy(md, bam_aux_get(bam_alignment, "MD"));
-			printf("MD: %s\n", md);
-			result->code = -1;
-			return(result);
-		}*/
-
 		j++;
 
 		if((j % 500000) == 0){
@@ -469,7 +458,7 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 		sprintf(result->hash + strlen(result->hash), "%02x", hash_bam[k]);
 	}
 
-	free(hash_bam);
+	//free(hash_bam);
 	result->code = EXIT_SUCCESS;
 	return result;
 }

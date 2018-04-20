@@ -238,8 +238,7 @@ int main( int argc, char** argv)
 			outstream = fopen(params->output_file, "w");
 		}
 		result = read_alignment(in_bam, params);
-
-		destroy_bam_info(in_bam);
+		destroy_bam_info(in_bam);	
 
 		fprintf(outstream, "%d\n", result->code);
 		fprintf(outstream, "%s\n", result->hash);

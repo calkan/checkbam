@@ -27,5 +27,7 @@ int is_server_running();
 void init_server(parameters **params);
 void init_client(parameters *params);
 
+verifybam_result_t* init_verifybam_result();
+
 void switch_stdio(FILE * stream, const char * file_path);
 #endif
