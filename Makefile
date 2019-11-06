@@ -7,7 +7,7 @@ CC=gcc
 CFLAGS_VERIFYBAM =  -lpthread -O0 -g -I htslib -DVERSION=\"$(VERIFYBAM_VERSION)\" -DBUILD_DATE=\"$(BUILD_DATE)\" -DUPDATE=\"$(VERIFYBAM_UPDATE)\" -DDEBUG=$(VERIFYBAM_DEBUG)
 SOURCES_VERIFYBAM = verifybam.c cmdline.c common.c processbam.c sha2.c
 OBJECTS_VERIFYBAM = $(SOURCES_VERIFYBAM:.c=.o)
-EXE_VERIFYBAM = verifybam
+EXE_VERIFYBAM = verifycoin
 INSTALLPATH = /usr/local/bin/
 
 LIBRARY_PATH = /usr/local/lib/libhts.a

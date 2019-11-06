@@ -1,8 +1,6 @@
 #include "verifybam.h"
 #include <time.h>
 
-
-
 void init_server(parameters **params){
 	bam_info* in_bam;
 
@@ -31,24 +29,16 @@ void init_server(parameters **params){
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stdout, "Started verifybam %s\n", get_datetime());
-	fprintf(stdout, "Loading reference genome\n");
+	fprintf(stderr, "Started verifybam %s\n", get_datetime());
+	fprintf(stderr, "Loading reference genome\n");
 
 	(*params)->ref_fai = fai_load((*params)->ref_genome);
 
 	load_chrom_properties(*params);
 
-	/* Redirect STDIO to a log file*/
-	if((*params)->daemon) {
-		switch_stdio(stdout, "/tmp/out_verifybam.log");
-		switch_stdio(stderr, "/tmp/err_verifybam.log");
-
-		daemon(0,1);
-	}
 	fprintf(stderr, "\nWaiting for incoming tasks\n");
 	signal(SIGPIPE, SIG_IGN); // Ignore pipe faults.
 
-	// Should spawn thread for each client.
 	while(1){
 		len = sizeof(struct sockaddr_un);
 		s2 = accept(s, &remote, &len);
@@ -69,12 +59,15 @@ void init_server(parameters **params){
 		}
 
 		buf[filename_len] = '\0';
-		set_str(&((*params)->bam_file), buf);
-		fprintf(stdout, "Read params %s\n", (*params)->bam_file);
+		set_str(&((*params)->job_dir), buf);
+		fprintf(stderr, "Job directory: %s\n", (*params)->job_dir);
 
 		in_bam = ( bam_info*) malloc( sizeof( bam_info));
 		in_bam->sample_name = NULL;
-		int load_result = load_bam( in_bam, (*params)->bam_file, (*params)->limit, (*params)->samMode);
+
+		char bam_file_path[1000];
+		sprintf(bam_file_path, "%s/upload/output.sorted.bam", (*params)->job_dir);
+		int load_result = load_bam( in_bam, bam_file_path, (*params)->limit, 0);
 		if(load_result < 0) {
 			send(s2, &load_result, sizeof(int), 0);
 		}
@@ -112,22 +105,18 @@ void init_client(parameters* params){
 		exit(1);
 	}
 
-	int bamfile_len = strlen(params->bam_file);
+	int job_dir_len = strlen(params->job_dir);
 
-	if (send(s, &bamfile_len, sizeof(int), 0) == -1) {
+	if (send(s, &job_dir_len, sizeof(int), 0) == -1) {
 		perror("send");
 		exit(1);
 	}
 
-	if (send(s, params->bam_file, sizeof(char)*bamfile_len, 0) == -1) {
+	if (send(s, params->job_dir, sizeof(char)*job_dir_len, 0) == -1) {
 		perror("send");
 		exit(1);
 	}
 
-	FILE* outstream = stdout;
-	if(params->output_file != NULL){
-		outstream = fopen(params->output_file, "w");
-	}
 	verifybam_result_t* result = init_verifybam_result();
 	recv(s, &(result->code), sizeof(int), 0);
 	if(result->code >= 0) {
@@ -136,11 +125,12 @@ void init_client(parameters* params){
 		recv(s, buf, len, 0); buf[len] = '\0';
 		set_str(&(result->hash), buf);
 
-		fprintf(outstream, "%d\n", result->code);
-		fprintf(outstream, "%s\n", result->hash);
+		fprintf(stdout, "%d\n", result->code);
+		fprintf(stdout, "%s\n", result->hash);
 	}
 	else {
-		fprintf(outstream, "%d\n", result->code);
+		fprintf(stdout, "%d\n", result->code);
+		fprintf(stdout, "INVALID_HASH\n");
 	}
 
 	close(s);
@@ -197,52 +187,25 @@ int main( int argc, char** argv)
 	}
 
 	if(params->server){
-		// Server mode is activated. Either start the server or send a task to server
 		if(is_server_running()){
 			// A progress is already running. Send request to there.
-			fprintf(stdout, "verifybam server is already runnning. Initialized in client mode.\n");
-			if( params->bam_file == NULL)
-			{
-				fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter an input BAM file using the --input option.\n");
-				exit(EXIT_PARAM_ERROR);
-			}
-			init_client(params);
+			fprintf(stderr, "verifybam server is already runnning. Initialized in client mode.\n");
+			exit(EXIT_PARAM_ERROR);
 		}
 		else{
-			// Verifybam is started for first time.
-			// Go into server mode.
-			fprintf(stdout, "verifybam server is not present. Initialized in server mode.\n");
-			if( params->ref_genome == NULL)
-			{
-				fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter reference genome file (FASTA) using the --ref option.\n");
-				exit(EXIT_PARAM_ERROR);
-			}
+			// Verifybam is started in server mode.
+			fprintf(stderr, "verifybam server is not present. Initialized in server mode.\n");
 			init_server(&params);
 		}
 		exit(EXIT_SUCCESS);
 	}
 	else{
-		// Load reference genome into memory
-		params->ref_fai = fai_load(params->ref_genome);
-
-		load_chrom_properties(params);
-
-		in_bam = ( bam_info*) malloc( sizeof( bam_info));
-		in_bam->sample_name = NULL;
-		load_bam( in_bam, params->bam_file, params->limit, params->samMode);
-
-		/* Run actual verification process */
-		verifybam_result_t* result;
-		FILE* outstream = stdout;
-		if(params->output_file != NULL){
-			outstream = fopen(params->output_file, "w");
+		if(!is_server_running()){
+			// Server is not present
+			fprintf(stderr, "verifybam server is not runnning. Client mode cannot function.\n");
+			exit(EXIT_PARAM_ERROR);
 		}
-		result = read_alignment(in_bam, params);
-		destroy_bam_info(in_bam);	
-
-		fprintf(outstream, "%d\n", result->code);
-		fprintf(outstream, "%s\n", result->hash);
-		return EXIT_SUCCESS;
+		init_client(params);
 	}
 
 }
