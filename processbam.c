@@ -397,7 +397,12 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	j=0;
 	bam_alignment = bam_init1();
-	return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+	if(params->samMode) {
+		return_value = sam_read1( bam_file, bam_header, bam_alignment);
+	}
+	else{
+		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+	}
 
 	while( return_value != -1 && _stop_flag==0 ){
 
@@ -409,7 +414,12 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 		send_job(new_job, args[index]);
 
 		bam_alignment = bam_init1();
-		return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+		if(params->samMode) {
+			return_value = sam_read1( bam_file, bam_header, bam_alignment);
+		}
+		else{
+			return_value = bam_read1( ( bam_file->fp).bgzf, bam_alignment);
+		}
 
 		j++;
 
@@ -441,8 +451,8 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 	elapsed = (finish.tv_sec - start.tv_sec);
 	elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
 
-	fprintf(stderr, "\nAll reads are matched.\nTotal aligned read count is %d <> %d\n", aligned_read_count, j);
-	fprintf(stderr, "It took %f seconds to finish\n", elapsed);
+	fprintf(stdout, "\nAll reads are matched.\nTotal aligned read count is %d <> %d\n", aligned_read_count, j);
+	fprintf(stdout, "It took %f seconds to finish\n", elapsed);
 
 	for( k = 0; k < SHA256_DIGEST_LENGTH; k++){
 		sprintf(result->hash + strlen(result->hash), "%02x", hash_bam[k]);

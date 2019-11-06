@@ -6,39 +6,47 @@
 #include "verifybam.h"
 #include "cmdline.h"
 
-int parse_command_line( int argc, char** argv, parameters* params, int exe)
+int parse_command_line( int argc, char** argv, parameters* params)
 {
 	int index,i;
 	short flag;
 	int o;
 	static struct option long_options[] =
 	{
+		{"input"	, required_argument,	0, 'i'},
 		{"ref"		, required_argument,	0, 'f'},
-		{"job-dir"	, required_argument,	0, 'j'},
+		{"output"	, required_argument,	0, 'o'},
 		{"limit"	, required_argument,	0, 'c'},
 		{"threads"	, required_argument,	0, 't'},
+		{"mode"		, required_argument,	0, 'm'},
 		{"help"		, no_argument,			0, 'h'},
-		{"server"	, no_argument,			0, 's'},
+        {"hash"     , no_argument,          0, 'H'},
+		{"daemon"	, no_argument,			0, 'd'},
+		{"sam"		, no_argument,			0, 'S'},
 		{"version"	, no_argument,			0, 'v'},
 		{0			, 0, 					0, 0}
 	};
 
 	if( argc == 1)
 	{
-		print_help(exe);
+		print_help();
 		return 0;
 	}
 
-	while( ( o = getopt_long( argc, argv, "hdv:i:f:t:o:q:l:c:", long_options, &index)) != -1)
+	while( ( o = getopt_long( argc, argv, "hdv:i:f:t:m:o:q:l:c:", long_options, &index)) != -1)
 	{
 		switch(o)
 		{
-			case 'j':
-				set_str( &( params->job_dir), optarg);
+			case 'i':
+				set_str( &( params->bam_file), optarg);
 			break;
 
 			case 'f':
 				set_str( &( params->ref_genome), optarg);
+			break;
+
+			case 'o':
+				set_str( &( params->output_file), optarg);
 			break;
 
 			case 't':
@@ -46,12 +54,24 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 			break;
 
 			case 'h':
-				print_help(exe);
+				print_help();
 				return 0;
 			break;
 
-			case 's':
-				params->server = 1;
+            case 'H':
+                params->hashing_enabled = 1;
+            break;
+
+			case 'm':
+				if(strcmp(optarg, "server") == 0) {
+					params->mode = SERVER;
+				} else if(strcmp(optarg, "client") == 0) {
+					params->mode = CLIENT;
+				}
+			break;
+
+			case 'S':
+				params->samMode = 1;
 			break;
 
 			case 'c':
@@ -80,16 +100,24 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 
 	/* TODO: check parameter validity */
 
-	if(!(params->server) && params->job_dir == NULL){ // Client mode and job directory is not given
-		fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Client mode must define a job directory to work on.\n");
+	if(params->mode == SEQUENTIAL || params->mode == SERVER){
+		if( params->ref_genome == NULL)
+		{
+			fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter reference genome file (FASTA) using the --ref option.\n");
+			return EXIT_PARAM_ERROR;
+		}
+	}
+	if(params->mode == SEQUENTIAL || params->mode == CLIENT) {
+		if( params->bam_file == NULL)
+		{
+			fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter an input BAM file using the --input option.\n");
+			return EXIT_PARAM_ERROR;
+		}
+	}
+	if(!(params->limit > 0 && params->limit <= 100)){
+		fprintf( stderr, "Limit must be in (0,100] range.\n");
 		return EXIT_PARAM_ERROR;
 	}
-	else if(params->server && params->ref_genome == NULL){ // Server mode and reference is not given
-		fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Server mode must define a reference file to work on.\n");
-		return EXIT_PARAM_ERROR;
-	}
-
-	/* check if threads>0 */
 	if( params->threads <= 0)
 	{
 		fprintf( stderr, "[CMDLINE WARNING] Invalid number of threads was entered (%d). Resetted to 1.\n", params->threads);
@@ -97,16 +125,21 @@ int parse_command_line( int argc, char** argv, parameters* params, int exe)
 	}
 
 	return 1;
+
 }
 
-void print_help( int exe)
+void print_help()
 {
 	fprintf( stdout, "\nVERIFYBAM: BAM validity checking tool.\n");
 	fprintf( stdout, "Version %s\n\tLast update: %s, build date: %s\n\n", VERSION, UPDATE, BUILD_DATE);
-	fprintf( stdout, "\t--job-dir  [path]     : Job directory .\n");
-	fprintf( stdout, "\t--ref     [reference] : Reference genome in FASTA format.\n");
-	fprintf( stdout, "\t--server              : Server or client mode.\n");
-	fprintf( stdout, "\t--threads             : Number of threads to run.\n");
-	fprintf( stdout, "\t--version             : Print version and exit.\n");
-	fprintf( stdout, "\t--help                : Print this help screen and exit.\n\n");
+	fprintf( stdout, "\t--input  [BAM file]  : Input file in sorted and indexed BAM format.\n");
+	fprintf( stdout, "\t--ref    [reference] : Reference genome in FASTA format.\n");
+	fprintf( stdout, "\t--mode               : Running mode. Default is sequential\n");
+	fprintf( stdout, "\t\tserver       : Start verifybam and wait for tasks to process. Reference is required\n");
+	fprintf( stdout, "\t\tclient       : Send a task to running verifybam server. Bam file is required\n");
+	fprintf( stdout, "\t\tsequential   : Run verifybam once. Reference and Bam file is required\n");
+	fprintf( stdout, "\t--threads            : Number of threads to run while processing bam file.\n");
+	fprintf( stdout, "\t--client             : Run in client mode. Only bam file is required\n");
+	fprintf( stdout, "\t--version            : Print version and exit.\n");
+	fprintf( stdout, "\t--help               : Print this help screen and exit.\n\n");
 }

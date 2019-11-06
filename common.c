@@ -16,10 +16,11 @@ void init_params( parameters** params)
 	/* initialize parameters */
 	*params = ( parameters*) malloc( sizeof( parameters));
 	( *params)->ref_genome = NULL;
-	( *params)->job_dir = NULL;
+	( *params)->bam_file = NULL;
 	( *params)->threads = 1;
-	( *params)->server = 0;
+	( *params)->mode = SEQUENTIAL;
 	( *params)->limit = 90;
+    ( *params)->hashing_enabled = 1;
 }
 
 void load_chrom_properties(parameters* params)
@@ -67,7 +68,7 @@ void load_chrom_properties(parameters* params)
 void print_params( parameters* params)
 {
 	int i;
-	fprintf(stdout, "Job Directory: %s\n", params->job_dir);
+	fprintf(stdout, "Bam file: %s\n", params->bam_file);
 	fprintf(stdout, "Reference Genome: %s\n", params->ref_genome);
 }
 

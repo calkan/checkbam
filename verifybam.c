@@ -20,17 +20,17 @@ void init_server(parameters **params){
 	bind(s, (struct sockaddr *)&local, len);
 
 
-	/* The second argument, 5, is the number of incoming connections
+	/* The second argument, 1, is the number of incoming connections
 	   that can be queued before you call accept(), below.
 	   If there are this many connections waiting to be accepted,
 	   additional clients will generate the error ECONNREFUSED. */
-	if( listen(s, 5) == -1){
+	if( listen(s, 1) == -1){
 		perror("listen");
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stderr, "Started verifybam %s\n", get_datetime());
-	fprintf(stderr, "Loading reference genome\n");
+	fprintf(stdout, "Started verifybam %s\n", get_datetime());
+	fprintf(stdout, "Loading reference genome\n");
 
 	(*params)->ref_fai = fai_load((*params)->ref_genome);
 
@@ -39,6 +39,7 @@ void init_server(parameters **params){
 	fprintf(stderr, "\nWaiting for incoming tasks\n");
 	signal(SIGPIPE, SIG_IGN); // Ignore pipe faults.
 
+	// Should spawn thread for each client.
 	while(1){
 		len = sizeof(struct sockaddr_un);
 		s2 = accept(s, &remote, &len);
@@ -59,15 +60,12 @@ void init_server(parameters **params){
 		}
 
 		buf[filename_len] = '\0';
-		set_str(&((*params)->job_dir), buf);
-		fprintf(stderr, "Job directory: %s\n", (*params)->job_dir);
+		set_str(&((*params)->bam_file), buf);
+		fprintf(stdout, "Read params %s\n", (*params)->bam_file);
 
 		in_bam = ( bam_info*) malloc( sizeof( bam_info));
 		in_bam->sample_name = NULL;
-
-		char bam_file_path[1000];
-		sprintf(bam_file_path, "%s/upload/output.sorted.bam", (*params)->job_dir);
-		int load_result = load_bam( in_bam, bam_file_path, (*params)->limit, 0);
+		int load_result = load_bam( in_bam, (*params)->bam_file, (*params)->limit, (*params)->samMode);
 		if(load_result < 0) {
 			send(s2, &load_result, sizeof(int), 0);
 		}
@@ -105,18 +103,22 @@ void init_client(parameters* params){
 		exit(1);
 	}
 
-	int job_dir_len = strlen(params->job_dir);
+	int bamfile_len = strlen(params->bam_file);
 
-	if (send(s, &job_dir_len, sizeof(int), 0) == -1) {
+	if (send(s, &bamfile_len, sizeof(int), 0) == -1) {
 		perror("send");
 		exit(1);
 	}
 
-	if (send(s, params->job_dir, sizeof(char)*job_dir_len, 0) == -1) {
+	if (send(s, params->bam_file, sizeof(char)*bamfile_len, 0) == -1) {
 		perror("send");
 		exit(1);
 	}
 
+	FILE* outstream = stdout;
+	if(params->output_file != NULL){
+		outstream = fopen(params->output_file, "w");
+	}
 	verifybam_result_t* result = init_verifybam_result();
 	recv(s, &(result->code), sizeof(int), 0);
 	if(result->code >= 0) {
@@ -125,12 +127,11 @@ void init_client(parameters* params){
 		recv(s, buf, len, 0); buf[len] = '\0';
 		set_str(&(result->hash), buf);
 
-		fprintf(stdout, "%d\n", result->code);
-		fprintf(stdout, "%s\n", result->hash);
+		fprintf(outstream, "%d\n", result->code);
+		fprintf(outstream, "%s\n", result->hash);
 	}
 	else {
-		fprintf(stdout, "%d\n", result->code);
-		fprintf(stdout, "INVALID_HASH\n");
+		fprintf(outstream, "%d\n", result->code);
 	}
 
 	close(s);
@@ -153,12 +154,6 @@ int is_server_running(){
 	}
 }
 
-void switch_stdio(FILE * stream, const char * file_path){
-	fflush(stream);
-	freopen(file_path, "a+", stream);
-	setlinebuf(stream);
-}
-
 int main( int argc, char** argv)
 {
 	bam_info* in_bam;
@@ -176,7 +171,7 @@ int main( int argc, char** argv)
 	srand(time(NULL));
 
 	/* Parse command line arguments */
-	return_value = parse_command_line( argc, argv, params, EXE_VERIFYBAM);
+	return_value = parse_command_line( argc, argv, params);
 	if( return_value == 0)
 	{
 		exit( EXIT_SUCCESS);
@@ -186,26 +181,61 @@ int main( int argc, char** argv)
 		exit( return_value);
 	}
 
-	if(params->server){
+	if(params->mode == SERVER){
 		if(is_server_running()){
-			// A progress is already running. Send request to there.
-			fprintf(stderr, "verifybam server is already runnning. Initialized in client mode.\n");
+			// A progress is already running.
+			fprintf(stderr, "A verifybam server is already running, cannot start in server mode.\n");
 			exit(EXIT_PARAM_ERROR);
 		}
 		else{
-			// Verifybam is started in server mode.
-			fprintf(stderr, "verifybam server is not present. Initialized in server mode.\n");
+			// Start server mode if reference is present
+			if( params->ref_genome == NULL)
+			{
+				fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter reference genome file (FASTA) using --ref option.\n");
+				exit(EXIT_PARAM_ERROR);
+			}
 			init_server(&params);
 		}
 		exit(EXIT_SUCCESS);
 	}
-	else{
+	else if(params->mode == CLIENT) {
 		if(!is_server_running()){
-			// Server is not present
-			fprintf(stderr, "verifybam server is not runnning. Client mode cannot function.\n");
+			// Verifybam server is not present
+			fprintf(stderr, "Could not find a running verifybam server. Please start a server first\n");
 			exit(EXIT_PARAM_ERROR);
 		}
-		init_client(params);
+		else {
+			if( params->bam_file == NULL)
+			{
+				fprintf( stderr, "[VERIFYBAM CMDLINE ERROR] Please enter input bam file using --input option.\n");
+				exit(EXIT_PARAM_ERROR);
+			}
+			init_client(params);
+		}
+	}
+	// Sequential mode
+	else{
+		// Load reference genome into memory
+		params->ref_fai = fai_load(params->ref_genome);
+
+		load_chrom_properties(params);
+
+		in_bam = ( bam_info*) malloc( sizeof( bam_info));
+		in_bam->sample_name = NULL;
+		load_bam( in_bam, params->bam_file, params->limit, params->samMode);
+
+		/* Run actual verification process */
+		verifybam_result_t* result;
+		FILE* outstream = stdout;
+		if(params->output_file != NULL){
+			outstream = fopen(params->output_file, "w");
+		}
+		result = read_alignment(in_bam, params);
+		destroy_bam_info(in_bam);	
+
+		fprintf(outstream, "%d\n", result->code);
+		fprintf(outstream, "%s\n", result->hash);
+		return EXIT_SUCCESS;
 	}
 
 }

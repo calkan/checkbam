@@ -40,20 +40,23 @@
 // Track memory usage
 extern long long memUsage;
 
-enum gender{ MALE, FEMALE};
+typedef enum { MALE, FEMALE}gender;
+typedef enum { SERVER = 0, CLIENT = 1, SEQUENTIAL = 2 }runMode;
 
 typedef struct _params
 {
 	char* ref_genome; /* path to reference genome - fasta */
-	char* job_dir; /* @coinami: Job directory path */
+	char* bam_file; /* path to input bam file */
 	int threads; /* number of threads to use for parallel mrFAST, and maybe future parallelization of TARDIS */
 	int num_chrom; /* number of chromosomes */
 	int* chrom_lengths; /* lengths of the chromosomes */
 	char** chrom_names; /* names of the chromosomes */
 	char **chrom_seq; /* chromosomes */
 	faidx_t* ref_fai;
-	short server; /* activate server mode */
+	runMode mode; /* Running mode */
 	short limit; /* Bottom limit for aligned read count in percentage. */
+	short samMode; /* Input is in SAM format */
+    short hashing_enabled; /* Whether hash calculation is enabled */
 
 	char* output_file;
 } parameters;
