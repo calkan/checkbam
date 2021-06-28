@@ -42,16 +42,23 @@ sudo apt-get install libz-dev
 
 ## Usage
 
+Note that the current version assumes the chromosome order in reference FASTA and the BAM header are exactly the same.
+
 Available options can be obtained by running verifybam without any parameters.
 
 ```
 VERIFYBAM: BAM validity checking tool.
-Version 0.2-alpha
-	Last update: August 01, 2016, build date: Fri Aug 26 08:19:31 EEST 2016
+Version 0.0.4
+	Last update: June 17, 2021, build date: Mon Jun 28 16:18:00 +03 2021
 
-	--input [BAM file]   : Input file in sorted and indexed BAM format.
-	--ref   [reference]  : Reference genome in FASTA format.
-	--fastq [Fastq file] : A fastq file that contains original reads of input BAM file. Can be given multiple times.
+	--input  [BAM file]  : Input file in sorted and indexed BAM format.
+	--ref    [reference] : Reference genome in FASTA format.
+	--mode               : Running mode. Default is sequential
+		server       : Start verifybam and wait for tasks to process. Reference is required
+		client       : Send a task to running verifybam server. Bam file is required
+		sequential   : Run verifybam once. Reference and Bam file is required
+	--threads            : Number of threads to run while processing bam file.
+	--client             : Run in client mode. Only bam file is required
 	--version            : Print version and exit.
 	--help               : Print this help screen and exit.
 ```

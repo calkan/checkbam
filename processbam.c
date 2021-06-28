@@ -295,7 +295,7 @@ void *read_thread(void *_args)
 				apply_cigar_md(ref_seq, read, md+1, n_cigar, cigar);
 
 				if (readcmp(read, ref_seq)){
-					fprintf(stdout, "%s\n", bam_get_qname(bam_alignment));
+				  fprintf(stdout, "[BAM_ERROR] %s\tat %s:%d\n", bam_get_qname(bam_alignment), args->params->chrom_names[map_tid], map_loc);
 					fprintf(stdout, "%s\n", read);
 					fprintf(stdout, "%s\n",	qual);
 
@@ -308,7 +308,7 @@ void *read_thread(void *_args)
 
 					fprintf(stdout, "\npre\n%s\n%s\n", read2, ref_seq2);
 					fprintf(stdout, "\npos\n%lu %s\n%lu %s\n", strlen(read), read, strlen(ref_seq), ref_seq);
-					fprintf(stdout, "\ntotal aligned reads\n%d\n", args->aligned_read_count);
+					fprintf(stdout, "\ntotal aligned reads\n%lu\n", args->aligned_read_count);
 					_stop_flag = args->thread_id;
 					continue;
 				}
@@ -346,7 +346,7 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 	htsFile *bam_file;
 	int return_value;
 	int i,j,k,t;
-	int aligned_read_count = 0;
+	unsigned long aligned_read_count = 0;
 	pthread_t threads[params->threads];
 	thread_args_t* args[params->threads];
 	verifybam_result_t* result = init_verifybam_result();
@@ -451,7 +451,7 @@ verifybam_result_t* read_alignment( bam_info* in_bam, parameters *params)
 	elapsed = (finish.tv_sec - start.tv_sec);
 	elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
 
-	fprintf(stdout, "\nAll reads are matched.\nTotal aligned read count is %d <> %d\n", aligned_read_count, j);
+	fprintf(stdout, "\nAll reads are matched.\nTotal aligned read count is %lu <> %d\n", aligned_read_count, j);
 	fprintf(stdout, "It took %f seconds to finish\n", elapsed);
 
 	for( k = 0; k < SHA256_DIGEST_LENGTH; k++){

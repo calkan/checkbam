@@ -1,5 +1,5 @@
-VERIFYBAM_VERSION := "0.0.3"
-VERIFYBAM_UPDATE := "January 1, 2018"
+VERIFYBAM_VERSION := "0.0.4"
+VERIFYBAM_UPDATE := "June 17, 2021"
 VERIFYBAM_DEBUG := 1
 
 BUILD_DATE := "$(shell date)"
@@ -10,12 +10,11 @@ OBJECTS_VERIFYBAM = $(SOURCES_VERIFYBAM:.c=.o)
 EXE_VERIFYBAM = verifybam
 INSTALLPATH = /usr/local/bin/
 
-LIBRARY_PATH = /usr/local/lib/libhts.a
 ifneq ("$(wildcard $(LIBRARY_PATH))","")
     LDFLAGS = /usr/local/lib/libhts.a -lz -lm -lpthread -lcrypto
     LIB_EXISTS = 1
 else
-    LDFLAGS = htslib/libhts.a -lz -lm -lpthread -lcrypto
+    LDFLAGS = htslib/libhts.a -lz -lm -lpthread -lcrypto -lcurl -llzma -lbz2
     LIB_EXISTS = 0
 endif
 

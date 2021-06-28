@@ -64,7 +64,7 @@ typedef struct _thread_data {
 	int thread_id;
 	buffer_t buffer;
 	BYTE *hash_bam;
-	int aligned_read_count;
+        unsigned long aligned_read_count;
 	parameters *params;
 } thread_args_t;
 
